@@ -1,0 +1,45 @@
+# Custom Bronze Layer Streaming DLT Pipeline
+resources:
+  pipelines:
+    custom_bronze_streaming_pipeline:
+      name: custom_bronze_streaming_pipeline
+      catalog: workspace
+      schema: bronze_custom_${bundle.target}
+      
+      # Enable serverless compute for cost efficiency
+      serverless: true
+      
+      # Enable continuous processing for streaming
+      continuous: true
+      
+      # Pipeline libraries
+      libraries:
+        - notebook:
+            path: ../src/custom_bronze_streaming.sql
+      
+      # Pipeline configuration
+      configuration:
+        bundle.sourcePath: ${workspace.file_path}/src
+        # Add custom configurations here
+        # source.json.path: "/path/to/your/json/files"
+        # data.quality.threshold: "95"
+          
+      # Development mode settings
+      development: true
+      
+      # Optional: Email notifications for pipeline events
+      # notifications:
+      #   - email_recipients:
+      #       - "data-team@company.com"
+      #     on_failure: true
+      #     on_success: false
+      #     alerts:
+      #       - "no-data-received"
+      #       - "data-quality-issues"
+      
+      # Optional: Pipeline permissions
+      # permissions:
+      #   - level: "CAN_VIEW"
+      #     group_name: "data-readers"
+      #   - level: "CAN_RUN"
+      #     group_name: "data-engineers"
