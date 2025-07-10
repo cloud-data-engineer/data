@@ -1,0 +1,30 @@
+# This is a Databricks asset bundle definition for dlt_101.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+bundle:
+  name: dlt_101
+  uuid: aaaa-a565-4d12-a00a-7bdf7a50d795
+
+include:
+  - resources/*.yml
+  - resources/*/*.yml
+
+targets:
+  dev:
+    # The default target uses 'mode: development' to create a development copy.
+    # - Deployed resources get prefixed with '[dev my_user_name]'
+    # - Any job schedules and triggers are paused by default.
+    # See also https://docs.databricks.com/dev-tools/bundles/deployment-modes.html.
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-your-workspace-a5d4.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-your-workspace-a5d4.cloud.databricks.com
+      # We explicitly deploy to /Workspace/Users/pat@clouddata.engineer to make sure we only have a single copy.
+      root_path: /Workspace/Users/pat@clouddata.engineer/.bundle/${bundle.name}/${bundle.target}
+    permissions:
+      - user_name: pat@clouddata.engineer
+        level: CAN_MANAGE

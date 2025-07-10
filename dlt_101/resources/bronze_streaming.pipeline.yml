@@ -1,0 +1,30 @@
+# Streaming Bronze Layer DLT Pipeline Configuration
+resources:
+  pipelines:
+    bronze_streaming_pipeline:
+      name: bronze_streaming_pipeline
+      catalog: workspace
+      schema: bronze_${bundle.target}
+      serverless: true
+      
+      # Pipeline configuration for streaming
+      continuous: true
+      
+      libraries:
+        - notebook:
+            path: ../src/bronze_streaming_pipeline.sql
+      
+      configuration:
+        bundle.sourcePath: ${workspace.file_path}/src
+        # Add any pipeline-specific configurations here
+        # Example: source.path: "/path/to/your/json/files"
+      
+      # Development settings
+      development: true
+      
+      # Notifications (optional)
+      # notifications:
+      #   - email_recipients:
+      #       - "your-email@company.com"
+      #     on_failure: true
+      #     on_success: false
