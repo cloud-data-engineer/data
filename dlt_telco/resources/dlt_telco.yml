@@ -1,0 +1,27 @@
+# Streaming Bronze Layer DLT Pipeline Configuration
+resources:
+  pipelines:
+    dlt_telco:
+      name: dlt_telco
+      catalog: bronze
+      schema: cdr
+      serverless: true
+      
+      libraries:
+        - notebook:
+            path: ../src/bronze.py
+      configuration:
+        bundle.sourcePath: ${workspace.file_path}/src
+        env_scope: ${bundle.target}
+        # Add any pipeline-specific configurations here
+        # Example: source.path: "/path/to/your/json/files"
+      
+      # Development settings
+      development: true
+      
+      # Notifications (optional)
+      # notifications:
+      #   - email_recipients:
+      #       - "your-email@company.com"
+      #     on_failure: true
+      #     on_success: false
