@@ -17,12 +17,12 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://dbc-ecbdc66c-a5d4.cloud.databricks.com
+      host: https://dbc-ecbdc66c-aoeo.cloud.databricks.com
 
   prod:
     mode: production
     workspace:
-      host: https://dbc-ecbdc66c-a5d4.cloud.databricks.com
+      host: https://dbc-ecbdc66c-aoeo.cloud.databricks.com
       # We explicitly deploy to /Workspace/Users/pat@clouddata.engineer to make sure we only have a single copy.
       root_path: /Workspace/Users/pat@clouddata.engineer/.bundle/${bundle.name}/${bundle.target}
     permissions:
