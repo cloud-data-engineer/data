@@ -53,9 +53,9 @@ python cdr_generator.py
 
 ```bash
 python export_users_to_kafka.py \
-  --bootstrap-servers <your-bootstrap-servers> \
-  --sasl-username <your-api-key> \
-  --sasl-password <your-api-secret> \
+  --bootstrap-servers $CONFLUENT_KAFKA_BOOTSTRAP_SERVERS \
+  --sasl-username $CONFLUENT_API_KEY \
+  --sasl-password $CONFLUENT_API_SECRET \
   --topic telco-users \
   --num-users 1000
 ```
@@ -64,11 +64,10 @@ python export_users_to_kafka.py \
 
 ```bash
 python kafka_producer.py \
-  --bootstrap-servers <your-bootstrap-servers> \
-  --sasl-username <your-api-key> \
-  --sasl-password <your-api-secret> \
+  --bootstrap-servers $CONFLUENT_KAFKA_BOOTSTRAP_SERVERS \
+  --sasl-username $CONFLUENT_API_KEY \
+  --sasl-password $CONFLUENT_API_SECRET \
   --interval 0.5 \
-  --num-users 1000 \
   --users-file users.json
 ```
 
