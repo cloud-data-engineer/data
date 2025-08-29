@@ -28,7 +28,7 @@ env_scope = spark.conf.get("env_scope")
 
 # Get Kafka credentials from Databricks secret
 dbutils = DBUtils(spark)
-kafka_settings = json.loads(dbutils.secrets.get(scope=env_scope, key="cloud-data-engineer-kafka"))
+kafka_settings = json.loads(dbutils.secrets.get(scope=env_scope, key="telco-kafka"))
 
 # Extract values from the secret
 KAFKA_BOOTSTRAP_SERVERS = kafka_settings["bootstrap_server"]

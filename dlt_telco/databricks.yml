@@ -2,7 +2,6 @@
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
   name: dlt_telco
-  uuid: 0c7f173c-e9d5-4717-818c-e5fc3ac28e0d
 
 include:
   - resources/*.yml
@@ -17,14 +16,14 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://dbc-ecbdc66c-aoeo.cloud.databricks.com
+      host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
 
   prod:
     mode: production
     workspace:
-      host: https://dbc-ecbdc66c-aoeo.cloud.databricks.com
-      # We explicitly deploy to /Workspace/Users/pat@clouddata.engineer to make sure we only have a single copy.
-      root_path: /Workspace/Users/pat@clouddata.engineer/.bundle/${bundle.name}/${bundle.target}
+      host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
+      # We explicitly deploy to /Workspace/Users/admin@clouddata.engineer to make sure we only have a single copy.
+      root_path: /Workspace/Users/admin@clouddata.engineer/.bundle/${bundle.name}/${bundle.target}
     permissions:
-      - user_name: pat@clouddata.engineer
+      - user_name: admin@clouddata.engineer
         level: CAN_MANAGE
