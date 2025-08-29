@@ -2,7 +2,7 @@
 # See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
 bundle:
   name: dlt_101
-  uuid: aaaa-a565-4d12-a00a-7bdf7a50d795
+  uuid: f7e04299-a565-4d12-a00a-7bdf7a50d795
 
 include:
   - resources/*.yml
@@ -17,12 +17,12 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://dbc-your-workspace-a5d4.cloud.databricks.com
+      host: https://dbc-779b4d57-069b.cloud.databricks.com/
 
   prod:
     mode: production
     workspace:
-      host: https://dbc-your-workspace-a5d4.cloud.databricks.com
+      host: https://dbc-779b4d57-069b.cloud.databricks.com/
       # We explicitly deploy to /Workspace/Users/pat@clouddata.engineer to make sure we only have a single copy.
       root_path: /Workspace/Users/pat@clouddata.engineer/.bundle/${bundle.name}/${bundle.target}
     permissions:
