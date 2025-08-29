@@ -1,6 +1,6 @@
-# Telco CDR Processing Platform with Databricks Delta Live Tables
+# Telco CDR Processing Pipeline with Databricks Delta Live Tables
 
-A modern, scalable platform for processing telecommunications Call Detail Records (CDRs) using Databricks Delta Live Tables and the medallion architecture pattern.
+A modern, scalable pipeline for processing telecommunications Call Detail Records (CDRs) using Databricks Delta Live Tables and the medallion architecture pattern.
 
 ## 🏗️ Architecture Overview
 
@@ -27,6 +27,8 @@ The platform processes multiple types of telecommunications data:
 
 The bronze layer provides raw data ingestion from Kafka topics with minimal transformation, preserving original data for compliance and auditability.
 
+![alt text](image-1.png)
+
 ### Key Features
 
 - **Streaming Ingestion**: Real-time data processing from Kafka
@@ -46,6 +48,8 @@ The bronze layer provides raw data ingestion from Kafka topics with minimal tran
 | `bronze_voip_cdrs` | `telco-voip-cdrs` | VoIP call records |
 | `bronze_ims_cdrs` | `telco-ims-cdrs` | IMS session records |
 | `bronze_all_cdrs` | All CDR topics | Multiplexed view of all CDR types |
+
+![alt text](image.png)
 
 ### Table Schema
 
@@ -85,6 +89,8 @@ databricks bundle deploy --target prod
 ```
 
 ## 🔧 Data Generator
+
+![alt text](image-2.png)
 
 ### Purpose
 
