@@ -7,6 +7,10 @@ include:
   - resources/*.yml
   - resources/*/*.yml
 
+sync:
+  exclude:
+    - docs/
+
 targets:
   dev:
     # The default target uses 'mode: development' to create a development copy.

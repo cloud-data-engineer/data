@@ -14,7 +14,7 @@ A scalable telecommunications Call Detail Records (CDR) processing platform usin
 - **Use Case**: Real-time telco data processing and analytics
 - **Status**: Bronze layer complete, Silver/Gold in development
 
-[📖 Full Documentation](dlt_telco/README.md)
+[📖 Full Documentation](dlt_telco/docs/README.md)
 
 ### DLT 101 Pipeline
 **Location**: [`dlt_101/`](dlt_101/)
@@ -79,7 +79,7 @@ Planned CI/CD implementation will include:
 
 ## 📚 Documentation
 
-- [Telco CDR Pipeline](dlt_telco/README.md)
+- [Telco CDR Pipeline](dlt_telco/docs/README.md)
 - [Data Generator Guide](src/cdr/data_generator/README.md)
 
 ## 📄 License
