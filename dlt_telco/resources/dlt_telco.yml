@@ -3,21 +3,22 @@ resources:
   pipelines:
     dlt_telco:
       name: dlt_telco
-      catalog: bronze
+      catalog: ${bundle.target}_bronze
       schema: cdr
       serverless: true
       
       libraries:
         - notebook:
             path: ../src/bronze.py
+        - notebook:
+            path: ../src/silver.py
       configuration:
         bundle.sourcePath: ${workspace.file_path}/src
         env_scope: ${bundle.target}
         # Add any pipeline-specific configurations here
         # Example: source.path: "/path/to/your/json/files"
       
-      # Development settings
-      development: true
+      development: ${var.development}
       
       # Notifications (optional)
       # notifications:
