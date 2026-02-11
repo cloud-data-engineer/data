@@ -1,0 +1,27 @@
+# Test Pipeline Configuration - Dev Only
+# Uses YAML anchors to deploy only in dev target
+# https://github.com/databricks/bundle-examples/tree/main/knowledge_base/target_includes
+
+# Define anchor with test pipeline configuration
+test-pipeline-config: &test-pipeline-config
+  dlt_telco_test:
+    name: dlt_telco_test
+    catalog: ${bundle.target}_bronze
+    schema: cdr
+    serverless: true
+    
+    libraries:
+      - notebook:
+          path: ../tests/test_pipeline.py
+    
+    configuration:
+      env_scope: ${bundle.target}
+    
+    development: ${var.development}
+
+# Target-specific includes
+targets:
+  dev:
+    resources:
+      pipelines:
+        <<: *test-pipeline-config

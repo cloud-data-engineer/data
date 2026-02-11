@@ -113,7 +113,7 @@ def get_standard_bronze_columns(df):
 # COMMAND ----------
 
 @dlt.table(
-    name="bronze_users",
+    name=f"{env_scope}_bronze.cdr.users",
     comment="Raw user data from Kafka",
     table_properties=get_bronze_table_properties()
 )
@@ -132,7 +132,7 @@ def create_bronze_cdr_table(cdr_type, topic_name):
     """Create a Bronze table for a specific CDR type"""
     
     @dlt.table(
-        name=f"bronze_{cdr_type}_cdrs",
+        name=f"{env_scope}_bronze.cdr.{cdr_type}_cdrs",
         comment=f"Raw {cdr_type} CDR data from Kafka",
         table_properties=get_bronze_table_properties()
     )
@@ -167,7 +167,7 @@ for cdr_type, topic in cdr_topics.items():
 # COMMAND ----------
 
 @dlt.table(
-    name="bronze_all_cdrs",
+    name=f"{env_scope}_bronze.cdr.all_cdrs",
     comment="Multiplexed table containing all CDR types",
     table_properties=get_bronze_table_properties()
 )

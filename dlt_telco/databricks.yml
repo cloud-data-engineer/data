@@ -7,6 +7,10 @@ include:
   - resources/*.yml
   - resources/*/*.yml
 
+variables:
+  development:
+    description: "Enable development mode for DLT pipelines"
+
 sync:
   exclude:
     - docs/
@@ -21,13 +25,18 @@ targets:
     default: true
     workspace:
       host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
+    variables:
+      development:
+        default: true
 
   prod:
     mode: production
     workspace:
       host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
-      # We explicitly deploy to /Workspace/Users/admin@clouddata.engineer to make sure we only have a single copy.
-      root_path: /Workspace/Users/admin@clouddata.engineer/.bundle/${bundle.name}/${bundle.target}
+      root_path: /Workspace//.bundle/${bundle.name}/${bundle.target}
     permissions:
       - user_name: admin@clouddata.engineer
         level: CAN_MANAGE
+    variables:
+      development:
+        default: false
