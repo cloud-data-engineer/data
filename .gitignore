@@ -9,3 +9,7 @@ __pycache__/
 .vscode
 .kiro
 .DS_Store
+
+.claude
+.mcp.json
+.ai-dev-kit/version
