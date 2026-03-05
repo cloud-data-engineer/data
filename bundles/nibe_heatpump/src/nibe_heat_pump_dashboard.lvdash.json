@@ -1,0 +1,1841 @@
+{
+  "datasets": [
+    {
+      "displayName": "KPI Overall Summary",
+      "name": "kpi_overall",
+      "queryLines": [
+        "SELECT   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS neg_superheat_pct,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(MAX(bt14_discharge_c), 1) AS max_discharge_c,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS total_heater_kwh,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct FROM dev_raw.nibe.silver_nibe_logs "
+      ]
+    },
+    {
+      "displayName": "Daily Extended Stats",
+      "name": "daily_extended",
+      "queryLines": [
+        "SELECT   log_date_parsed AS log_date,   MIN(bt1_outdoor_temp_c) AS min_outdoor_c,   MAX(bt1_outdoor_temp_c) AS max_outdoor_c,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(MAX(CASE WHEN compr_freq_act_hz > 0 THEN bt25_supply_c - bt71_return_c END), 1) AS max_delta_t_k,   ROUND(AVG(CASE WHEN priority_mode = 30 THEN calc_supply_c END), 1) AS avg_calc_supply_c,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   MIN(degree_minutes) AS min_dm,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN compr_freq_act_hz END), 0) AS avg_freq_hz,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS heater_duty_pct,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS heater_energy_kwh,   MAX(tot_int_add_kw) AS heater_max_kw,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS negative_superheat_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bp4_hp_bar END), 1) AS avg_hp_bar,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt14_discharge_c END), 1) AS avg_discharge_c,   SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) AS alarm_samples,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN priority_mode = 30 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS co_pct,   COUNT(*) AS total_samples FROM dev_raw.nibe.silver_nibe_logs GROUP BY log_date_parsed ORDER BY log_date_parsed "
+      ]
+    },
+    {
+      "displayName": "Refrigerant 5-min Timeseries",
+      "name": "superheat_5min",
+      "queryLines": [
+        "SELECT   TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) AS ts_5min,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar,   ROUND(AVG(bt14_discharge_c), 1) AS avg_discharge_c FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 GROUP BY TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) ORDER BY ts_5min "
+      ]
+    },
+    {
+      "displayName": "Heating Curve Analysis",
+      "name": "heating_curve",
+      "queryLines": [
+        "SELECT   ROUND(bt1_outdoor_temp_c, 0) AS bt1_rounded,   ROUND(AVG(calc_supply_c), 1) AS avg_calc_supply,   ROUND(AVG(bt25_supply_c), 1) AS avg_actual_supply,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS heater_pct,   COUNT(*) AS samples FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY ROUND(bt1_outdoor_temp_c, 0) HAVING COUNT(*) > 50 ORDER BY bt1_rounded "
+      ]
+    },
+    {
+      "displayName": "Flow Quality by Frequency Band",
+      "name": "flow_quality",
+      "queryLines": [
+        "SELECT   CASE     WHEN compr_freq_act_hz BETWEEN 20 AND 50 THEN '20-50 Hz'     WHEN compr_freq_act_hz BETWEEN 50 AND 80 THEN '50-80 Hz'     WHEN compr_freq_act_hz BETWEEN 80 AND 110 THEN '80-110 Hz'     WHEN compr_freq_act_hz > 110 THEN '110+ Hz'   END AS freq_band,   ROUND(AVG(bt25_supply_c - bt71_return_c), 1) AS avg_delta_t_k,   ROUND(MAX(bt25_supply_c - bt71_return_c), 1) AS max_delta_t_k,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   COUNT(*) AS samples FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY 1 ORDER BY 1 "
+      ]
+    },
+    {
+      "displayName": "Alarm Detail",
+      "name": "alarm_detail",
+      "queryLines": [
+        "SELECT   alarm_number,   CASE alarm_number     WHEN 183 THEN '183: HP Soft Alarm'     WHEN 271 THEN '271: Low Temp Stop'     WHEN 163 THEN '163: HP Trip'     WHEN 162 THEN '162: HP Trip Max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS samples,   ROUND(COUNT(*) * 5.0 / 3600, 1) AS duration_hours,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(compr_freq_act_hz), 0) AS avg_freq_hz,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar FROM dev_raw.nibe.silver_nibe_logs WHERE alarm_active GROUP BY alarm_number ORDER BY samples DESC "
+      ]
+    },
+    {
+      "displayName": "Hourly Alarm Distribution",
+      "name": "hourly_alarm",
+      "queryLines": [
+        "SELECT   HOUR(logged_at) AS hour_of_day,   CASE alarm_number     WHEN 183 THEN '183: HP Soft'     WHEN 271 THEN '271: Low Temp'     WHEN 163 THEN '163: HP Trip'     WHEN 162 THEN '162: HP Trip Max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS alarm_samples FROM dev_raw.nibe.silver_nibe_logs WHERE alarm_active GROUP BY HOUR(logged_at), alarm_number ORDER BY hour_of_day "
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "displayName": "Daily Overview",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## NIBE Heat Pump — Daily Overview"
+              ]
+            },
+            "name": "p1-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "7-day diagnostic summary — Jan 12-18  |  Targets: DeltaT 3-5K  Superheat 3-7K  DM > -200  Heater 0 kWh"
+              ]
+            },
+            "name": "p1-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-delta-t",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg DeltaT (K)",
+                  "fieldName": "avg_delta_t_k"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg DeltaT (K) — Target 3-5K"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-avg-dm",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_dm`",
+                      "name": "avg_dm"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Degree Min",
+                  "fieldName": "avg_dm"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Degree Min — Target > -200"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-neg-sh",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`neg_superheat_pct`",
+                      "name": "neg_superheat_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Neg Superheat %",
+                  "fieldName": "neg_superheat_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Neg Superheat % — Target < 5%"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 5
+          },
+          "widget": {
+            "name": "kpi-heater-kwh",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`total_heater_kwh`",
+                      "name": "total_heater_kwh"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Total Heater kWh",
+                  "fieldName": "total_heater_kwh"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Heater kWh — Target 0"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 5
+          },
+          "widget": {
+            "name": "kpi-alarm-pct",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`alarm_pct`",
+                      "name": "alarm_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Alarm Time %",
+                  "fieldName": "alarm_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Alarm Time %"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 5
+          },
+          "widget": {
+            "name": "kpi-compr-duty",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`compr_duty_pct`",
+                      "name": "compr_duty_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Compressor Duty %",
+                  "fieldName": "compr_duty_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Compressor Duty %"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 8
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Daily Temperatures and DeltaT"
+              ]
+            },
+            "name": "sec-temps"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "name": "chart-outdoor-temp",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`min_outdoor_c`",
+                      "name": "min_outdoor_c"
+                    },
+                    {
+                      "expression": "`max_outdoor_c`",
+                      "name": "max_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_outdoor_c`",
+                      "name": "avg_outdoor_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Min (C)",
+                      "fieldName": "min_outdoor_c"
+                    },
+                    {
+                      "displayName": "Max (C)",
+                      "fieldName": "max_outdoor_c"
+                    },
+                    {
+                      "displayName": "Avg (C)",
+                      "fieldName": "avg_outdoor_c"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Outdoor Temperature (C)"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 9
+          },
+          "widget": {
+            "name": "chart-delta-t-daily",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    },
+                    {
+                      "expression": "`max_delta_t_k`",
+                      "name": "max_delta_t_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Avg DeltaT (K)",
+                      "fieldName": "avg_delta_t_k"
+                    },
+                    {
+                      "displayName": "Max DeltaT (K)",
+                      "fieldName": "max_delta_t_k"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Supply-Return DeltaT (K) — Target 3-5K"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Degree Minutes and Heater Usage"
+              ]
+            },
+            "name": "sec-dm-heater"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "name": "chart-dm-daily",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`avg_dm`",
+                      "name": "avg_dm"
+                    },
+                    {
+                      "expression": "`min_dm`",
+                      "name": "min_dm"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Avg DM",
+                      "fieldName": "avg_dm"
+                    },
+                    {
+                      "displayName": "Min DM",
+                      "fieldName": "min_dm"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Degree Minutes — Target > -200"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 15
+          },
+          "widget": {
+            "name": "chart-heater-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`heater_energy_kwh`",
+                      "name": "heater_energy_kwh"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Heater Energy (kWh)",
+                  "fieldName": "heater_energy_kwh",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Electric Heater Energy (kWh/day)"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 20
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Daily Summary Table"
+              ]
+            },
+            "name": "sec-daily-table"
+          }
+        },
+        {
+          "position": {
+            "height": 7,
+            "width": 6,
+            "x": 0,
+            "y": 21
+          },
+          "widget": {
+            "name": "table-daily",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`min_outdoor_c`",
+                      "name": "min_outdoor_c"
+                    },
+                    {
+                      "expression": "`max_outdoor_c`",
+                      "name": "max_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_outdoor_c`",
+                      "name": "avg_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    },
+                    {
+                      "expression": "`avg_dm`",
+                      "name": "avg_dm"
+                    },
+                    {
+                      "expression": "`compr_duty_pct`",
+                      "name": "compr_duty_pct"
+                    },
+                    {
+                      "expression": "`heater_energy_kwh`",
+                      "name": "heater_energy_kwh"
+                    },
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    },
+                    {
+                      "expression": "`negative_superheat_pct`",
+                      "name": "negative_superheat_pct"
+                    },
+                    {
+                      "expression": "`avg_hp_bar`",
+                      "name": "avg_hp_bar"
+                    },
+                    {
+                      "expression": "`alarm_pct`",
+                      "name": "alarm_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Date",
+                    "fieldName": "log_date"
+                  },
+                  {
+                    "displayName": "Min Out C",
+                    "fieldName": "min_outdoor_c"
+                  },
+                  {
+                    "displayName": "Max Out C",
+                    "fieldName": "max_outdoor_c"
+                  },
+                  {
+                    "displayName": "Avg Out C",
+                    "fieldName": "avg_outdoor_c"
+                  },
+                  {
+                    "displayName": "Avg DeltaT K",
+                    "fieldName": "avg_delta_t_k"
+                  },
+                  {
+                    "displayName": "Avg DM",
+                    "fieldName": "avg_dm"
+                  },
+                  {
+                    "displayName": "Compr %",
+                    "fieldName": "compr_duty_pct"
+                  },
+                  {
+                    "displayName": "Heater kWh",
+                    "fieldName": "heater_energy_kwh"
+                  },
+                  {
+                    "displayName": "Superheat K",
+                    "fieldName": "avg_superheat_k"
+                  },
+                  {
+                    "displayName": "Neg SH %",
+                    "fieldName": "negative_superheat_pct"
+                  },
+                  {
+                    "displayName": "HP bar",
+                    "fieldName": "avg_hp_bar"
+                  },
+                  {
+                    "displayName": "Alarm %",
+                    "fieldName": "alarm_pct"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Summary"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "name": "daily_overview",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Refrigerant Circuit",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Refrigerant Circuit Health"
+              ]
+            },
+            "name": "p2-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Superheat (BT17-BT16), high-side pressure, and discharge temperature over time"
+              ]
+            },
+            "name": "p2-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-avg-superheat",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Superheat (K)",
+                  "fieldName": "avg_superheat_k"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Superheat (K) — Target 3-7K"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-neg-sh-p2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`neg_superheat_pct`",
+                      "name": "neg_superheat_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Neg Superheat %",
+                  "fieldName": "neg_superheat_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Neg Superheat % — Target < 5%"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-max-hp-p2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`max_hp_bar`",
+                      "name": "max_hp_bar"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Max HP (bar)",
+                  "fieldName": "max_hp_bar"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Max HP Pressure (bar) — Warning > 28"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 5
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Superheat Over Time (5-min intervals, compressor running)"
+              ]
+            },
+            "name": "sec-superheat-time"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 6
+          },
+          "widget": {
+            "name": "chart-superheat-ts",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "superheat_5min",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`ts_5min`",
+                      "name": "ts_5min"
+                    },
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Time",
+                  "fieldName": "ts_5min",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Superheat (K)",
+                  "fieldName": "avg_superheat_k",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Suction Superheat BT17-BT16 (K) — Target 3-7K — Negative = liquid refrigerant risk"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 11
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### High-Side Pressure and Discharge Temperature"
+              ]
+            },
+            "name": "sec-pressure-discharge"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 12
+          },
+          "widget": {
+            "name": "chart-hp-pressure",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "superheat_5min",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`ts_5min`",
+                      "name": "ts_5min"
+                    },
+                    {
+                      "expression": "`avg_hp_bar`",
+                      "name": "avg_hp_bar"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Time",
+                  "fieldName": "ts_5min",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "HP Pressure (bar)",
+                  "fieldName": "avg_hp_bar",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "High-Side Pressure (bar) — Warning > 28 bar"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 12
+          },
+          "widget": {
+            "name": "chart-discharge-ts",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "superheat_5min",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`ts_5min`",
+                      "name": "ts_5min"
+                    },
+                    {
+                      "expression": "`avg_discharge_c`",
+                      "name": "avg_discharge_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Time",
+                  "fieldName": "ts_5min",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Discharge Temp (C)",
+                  "fieldName": "avg_discharge_c",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Discharge Temperature BT14 (C) — Warning > 100C"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        }
+      ],
+      "name": "refrigerant_circuit",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Flow and Heating Curve",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Flow Quality and Heating Curve"
+              ]
+            },
+            "name": "p3-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "DeltaT by compressor load — heating curve — electric heater usage by outdoor temperature"
+              ]
+            },
+            "name": "p3-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Heating Curve: Calculated vs Actual Supply Temperature"
+              ]
+            },
+            "name": "sec-hc"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "name": "chart-heating-curve",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "heating_curve",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`bt1_rounded`",
+                      "name": "bt1_rounded"
+                    },
+                    {
+                      "expression": "`avg_calc_supply`",
+                      "name": "avg_calc_supply"
+                    },
+                    {
+                      "expression": "`avg_actual_supply`",
+                      "name": "avg_actual_supply"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Outdoor Temp (C)",
+                  "fieldName": "bt1_rounded",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Calc Supply (C)",
+                      "fieldName": "avg_calc_supply"
+                    },
+                    {
+                      "displayName": "Actual Supply (C)",
+                      "fieldName": "avg_actual_supply"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Heating Curve: Outdoor Temp vs Supply Temperature"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 8
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Flow Quality and Superheat by Compressor Load Band"
+              ]
+            },
+            "name": "sec-flow-quality"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "name": "chart-dt-freq",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "flow_quality",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`freq_band`",
+                      "name": "freq_band"
+                    },
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Frequency Band",
+                  "fieldName": "freq_band",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Avg DeltaT (K)",
+                  "fieldName": "avg_delta_t_k",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg DeltaT by Compressor Frequency — Target 3-5K"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 9
+          },
+          "widget": {
+            "name": "chart-sh-freq",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "flow_quality",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`freq_band`",
+                      "name": "freq_band"
+                    },
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Frequency Band",
+                  "fieldName": "freq_band",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Avg Superheat (K)",
+                  "fieldName": "avg_superheat_k",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Superheat by Compressor Frequency — Target 3-7K"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Electric Heater Usage by Outdoor Temperature"
+              ]
+            },
+            "name": "sec-heater"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "name": "chart-heater-bt1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "heating_curve",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`bt1_rounded`",
+                      "name": "bt1_rounded"
+                    },
+                    {
+                      "expression": "`heater_pct`",
+                      "name": "heater_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Outdoor Temp (C)",
+                  "fieldName": "bt1_rounded",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "displayName": "Heater Active %",
+                  "fieldName": "heater_pct",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Electric Heater Active % by Outdoor Temperature"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        }
+      ],
+      "name": "flow_heating_curve",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Alarm Analysis",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Alarm Analysis"
+              ]
+            },
+            "name": "p4-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Alarm distribution by code, hourly timing, and operating context"
+              ]
+            },
+            "name": "p4-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Alarm Summary by Code"
+              ]
+            },
+            "name": "sec-alarm-sum"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "name": "table-alarm-detail",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "alarm_detail",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`alarm_label`",
+                      "name": "alarm_label"
+                    },
+                    {
+                      "expression": "`samples`",
+                      "name": "samples"
+                    },
+                    {
+                      "expression": "`duration_hours`",
+                      "name": "duration_hours"
+                    },
+                    {
+                      "expression": "`avg_outdoor_c`",
+                      "name": "avg_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_freq_hz`",
+                      "name": "avg_freq_hz"
+                    },
+                    {
+                      "expression": "`avg_hp_bar`",
+                      "name": "avg_hp_bar"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Alarm Code",
+                    "fieldName": "alarm_label"
+                  },
+                  {
+                    "displayName": "Samples",
+                    "fieldName": "samples"
+                  },
+                  {
+                    "displayName": "Duration (h)",
+                    "fieldName": "duration_hours"
+                  },
+                  {
+                    "displayName": "Avg Outdoor C",
+                    "fieldName": "avg_outdoor_c"
+                  },
+                  {
+                    "displayName": "Avg Freq Hz",
+                    "fieldName": "avg_freq_hz"
+                  },
+                  {
+                    "displayName": "Avg HP bar",
+                    "fieldName": "avg_hp_bar"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Alarm Statistics by Code"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Hourly Alarm Distribution (stacked by alarm code)"
+              ]
+            },
+            "name": "sec-hourly"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 10
+          },
+          "widget": {
+            "name": "chart-hourly-alarms",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "hourly_alarm",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`hour_of_day`",
+                      "name": "hour_of_day"
+                    },
+                    {
+                      "expression": "`alarm_label`",
+                      "name": "alarm_label"
+                    },
+                    {
+                      "expression": "`alarm_samples`",
+                      "name": "alarm_samples"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "color": {
+                  "displayName": "Alarm Code",
+                  "fieldName": "alarm_label",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Hour of Day",
+                  "fieldName": "hour_of_day",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Alarm Samples",
+                  "fieldName": "alarm_samples",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Alarm Events by Hour of Day"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 6,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Alarm Code Reference** | **183 - EB101 High Pressure Soft Alarm** (17.2h, avg -7.6C outdoor): Compressor running below min frequency due to high-side pressure. Cyclical pattern; soft alarm, system keeps running. **271 - Low Temperature Stop** (15.6h, avg -20.7C outdoor): Compressor stopped, outdoor temp too cold for safe operation. Low-temperature protection cutout. **163 - High Pressure Trip** (0.2h, ~32 bar): Hard alarm, compressor trip at high pressure under high load. **162 - High Pressure Trip Max** (<0.1h, 36.8 bar): Hard alarm, extreme pressure trip. Root cause 162/163: insufficient flow -> high DeltaT -> high condensing pressure."
+              ]
+            },
+            "name": "alarm-ref"
+          }
+        }
+      ],
+      "name": "alarm_analysis",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Guide — How to Read This Dashboard",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Guide — What Am I Looking At?"
+              ]
+            },
+            "name": "g-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Metric definitions, good/warning/critical thresholds, and current system assessment for this dataset"
+              ]
+            },
+            "name": "g-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Flow and Heat Demand Metrics"
+              ]
+            },
+            "name": "g-sec-flow"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**DeltaT Supply-Return (K)** — Temperature difference between heating circuit supply (BT25) and return (BT71). The most important flow indicator. Good: 3-5K | Warning: 5-7K | Critical: >7K causes HP pressure alarms. Current avg: 4.5K (acceptable) but rises to 6.4K at max compressor load — this is the primary trigger for alarms 183 and 163. Typical fix: bleed air from all radiators and underfloor circuits, increase pump GP12 speed."
+              ]
+            },
+            "name": "g-delta-t"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 3
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Degree Minutes (DM)** — NIBE integrating heat demand controller. Starts at 0, grows negative as the building cools below setpoint. Compressor starts at approx -120 DM. Good: avg > -200 (demand met quickly) | Warning: -200 to -400 | Critical: <-400 stuck = heat pump cannot keep up with demand. Current avg: -370 (critical). System runs at maximum frequency but cannot maintain temperature. Backup electric heater bridges the gap at 3x the cost."
+              ]
+            },
+            "name": "g-degree-min"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 8
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Refrigerant Circuit Metrics"
+              ]
+            },
+            "name": "g-sec-refrig"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 3,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Suction Superheat BT17-BT16 (K)** — Temperature margin of refrigerant vapor above evaporation point. Protects compressor from liquid refrigerant entering the cylinder (flooding). Good: 3-7K | Warning: <3K (near flooding) or >15K (undercharged) | Critical: <0K liquid enters compressor. Current avg: 5.9K (OK in average) but 28.8% of compressor running time is negative. This is critical — sustained liquid flooding causes accelerated wear. Action: HVAC engineer should inspect expansion valve calibration and refrigerant charge level."
+              ]
+            },
+            "name": "g-superheat"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 3,
+            "x": 3,
+            "y": 9
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**HP Pressure BP4 (bar)** — High-side refrigerant pressure. Good: 15-25 bar | Warning: 25-28 bar | Critical: >28 bar triggers soft alarm 183 (freq reduction), >32 bar trips alarm 163 (compressor stops), >36 bar trips alarm 162. Max recorded: 37.9 bar (critical). Root cause: high DeltaT limits heat transfer, forcing pressure up. Fix DeltaT first. **Discharge Temp BT14 (C)** — Compressor outlet gas temp. Good: <80C | Warning: 80-100C | Critical: >100C. Max: 106.8C. Consequence of high-pressure operation. **Heater kWh** — Backup element uses 3-9 kW. Target 0 kWh/day. Total 389.6 kWh = approx EUR 78 vs EUR 26 at COP 3."
+              ]
+            },
+            "name": "g-pressure"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Current System Assessment and Action Plan"
+              ]
+            },
+            "name": "g-sec-status"
+          }
+        },
+        {
+          "position": {
+            "height": 7,
+            "width": 6,
+            "x": 0,
+            "y": 16
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Priority Action Plan (Jan 12-18 data)** | **(1) FIX WATER FLOW — Highest impact, zero cost.** Bleed air from every radiator, underfloor heating manifold, and the heat pump itself. Check circulation pump GP12 is at maximum speed. Check balancing valves are not restricting flow. Target: reduce DeltaT from 6.4K to 3-4K at full load. Expected result: HP pressure drops below 28 bar, alarms 183/163/162 disappear, negative superheat likely improves too. | **(2) REFRIGERANT INSPECTION — Book HVAC engineer.** 28.8% negative superheat over 7 days is abnormal and risks compressor damage. Engineer should measure expansion valve superheat setting (target 5-8K), check refrigerant charge level. | **(3) CAPACITY — Manage expectations.** Degree Minutes at -370 means the heat pump is correctly sized for mild weather but struggles below -15C. Options: improve building insulation, slightly raise heating curve setpoint, or accept electric heater as peak-load supplement for extreme cold. The 7-day heater bill was approx EUR 78 vs EUR 26 if COP 3 achieved — improving flow (step 1) will cut most of that waste."
+              ]
+            },
+            "name": "g-status"
+          }
+        }
+      ],
+      "name": "guide",
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

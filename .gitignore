@@ -11,5 +11,6 @@ __pycache__/
 .DS_Store
 
 .claude
+.gemini
 .mcp.json
 .ai-dev-kit

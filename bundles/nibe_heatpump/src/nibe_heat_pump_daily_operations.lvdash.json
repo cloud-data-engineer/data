@@ -1,0 +1,997 @@
+{
+  "datasets": [
+    {
+      "displayName": "Summary KPIs",
+      "name": "ds_summary",
+      "queryLines": [
+        "SELECT   COUNT(DISTINCT log_date) AS total_days,   ROUND(AVG(outdoor_avg_c), 1) AS avg_outdoor_c,   ROUND(AVG(supply_avg_c), 1) AS avg_supply_c,   ROUND(AVG(superheat_avg_k), 1) AS avg_superheat_k,   ROUND(AVG(delta_t_avg_k), 1) AS avg_delta_t_k,   ROUND(AVG(CAST(compr_duty_pct AS DOUBLE)), 0) AS avg_compr_duty,   ROUND(SUM(heater_kwh), 0) AS total_heater_kwh FROM dev_raw.nibe.gold_nibe_hourly_detail "
+      ]
+    },
+    {
+      "displayName": "Daily Trend",
+      "name": "ds_daily",
+      "queryLines": [
+        "SELECT   log_date,   ROUND(AVG(outdoor_avg_c), 1) AS outdoor_avg_c,   ROUND(AVG(supply_avg_c), 1) AS supply_avg_c,   ROUND(AVG(superheat_avg_k), 1) AS superheat_avg_k,   ROUND(AVG(delta_t_avg_k), 1) AS delta_t_avg_k,   ROUND(AVG(CAST(compr_duty_pct AS DOUBLE)), 0) AS compr_duty_pct,   ROUND(SUM(heater_kwh), 1) AS heater_kwh_day FROM dev_raw.nibe.gold_nibe_hourly_detail GROUP BY log_date ORDER BY log_date "
+      ]
+    },
+    {
+      "displayName": "Alarm Episodes",
+      "name": "ds_alarms",
+      "queryLines": [
+        "SELECT   log_date,   alarm_number,   CAST(start_time AS STRING) AS start_time_str,   ROUND(duration_min, 1) AS duration_min,   ROUND(outdoor_avg_c, 1) AS outdoor_avg_c,   ROUND(superheat_avg_k, 1) AS superheat_avg_k,   ROUND(delta_t_avg_k, 1) AS delta_t_avg_k,   ROUND(hp_avg_bar, 1) AS hp_avg_bar,   ROUND(discharge_avg_c, 1) AS discharge_avg_c FROM dev_raw.nibe.gold_nibe_alarm_episodes ORDER BY log_date, episode_id "
+      ]
+    },
+    {
+      "displayName": "Data Quality",
+      "name": "ds_quality",
+      "queryLines": [
+        "SELECT   log_date,   total_samples,   ROUND(CAST(coverage_pct AS DOUBLE), 1) AS coverage_pct,   ROUND(CAST(logged_hours AS DOUBLE), 1) AS logged_hours,   max_gap_seconds FROM dev_raw.nibe.gold_nibe_data_quality ORDER BY log_date "
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "displayName": "Overview",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## NIBE Heat Pump — Operations Overview"
+              ]
+            },
+            "name": "title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Daily performance summary — NIBE F2xxx air-source heat pump (all logged dates)"
+              ]
+            },
+            "name": "subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-outdoor-temp",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_outdoor_c`",
+                      "name": "avg_outdoor_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Outdoor °C",
+                  "fieldName": "avg_outdoor_c"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Outdoor Temp (°C)"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-superheat",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Superheat K",
+                  "fieldName": "avg_superheat_k"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Superheat (K)"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-heater-kwh",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`total_heater_kwh`",
+                      "name": "total_heater_kwh"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Total Heater kWh",
+                  "fieldName": "total_heater_kwh"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total Backup Heater (kWh)"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 5
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Temperature Trends"
+              ]
+            },
+            "name": "section-temperatures"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 6
+          },
+          "widget": {
+            "name": "chart-temp-trend",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`outdoor_avg_c`",
+                      "name": "outdoor_avg_c"
+                    },
+                    {
+                      "expression": "`supply_avg_c`",
+                      "name": "supply_avg_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Outdoor Avg °C",
+                      "fieldName": "outdoor_avg_c"
+                    },
+                    {
+                      "displayName": "Supply Avg °C",
+                      "fieldName": "supply_avg_c"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Outdoor & Supply Temperature by Day"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 11
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Compressor Duty & Backup Heater"
+              ]
+            },
+            "name": "section-compressor"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 12
+          },
+          "widget": {
+            "name": "chart-compr-duty",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`compr_duty_pct`",
+                      "name": "compr_duty_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Compressor Duty %",
+                  "fieldName": "compr_duty_pct",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Compressor Duty % per Day"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 12
+          },
+          "widget": {
+            "name": "chart-heater-kwh",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`heater_kwh_day`",
+                      "name": "heater_kwh_day"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Backup Heater kWh",
+                  "fieldName": "heater_kwh_day",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Backup Heater Usage per Day (kWh)"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        }
+      ],
+      "name": "overview",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Flow Diagnostics",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Flow & Refrigerant Diagnostics"
+              ]
+            },
+            "name": "fd-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Suction superheat (target 3-7 K), floor delta-T (target 3-5 K), and compressor operation"
+              ]
+            },
+            "name": "fd-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-delta-t",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Floor Delta-T K",
+                  "fieldName": "avg_delta_t_k"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Floor Delta-T (K)"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-superheat-fd",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Superheat K",
+                  "fieldName": "avg_superheat_k"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Superheat (K)"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "kpi-compr-duty",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_compr_duty`",
+                      "name": "avg_compr_duty"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Avg Compr Duty %",
+                  "fieldName": "avg_compr_duty"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Compressor Duty %"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 5
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Refrigerant & Flow Trends"
+              ]
+            },
+            "name": "section-refrigerant"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 6
+          },
+          "widget": {
+            "name": "chart-superheat-delta-t",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`superheat_avg_k`",
+                      "name": "superheat_avg_k"
+                    },
+                    {
+                      "expression": "`delta_t_avg_k`",
+                      "name": "delta_t_avg_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Superheat K",
+                      "fieldName": "superheat_avg_k"
+                    },
+                    {
+                      "displayName": "Floor Delta-T K",
+                      "fieldName": "delta_t_avg_k"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Suction Superheat & Floor Delta-T by Day"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 11
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Daily Summary Table"
+              ]
+            },
+            "name": "section-daily-table"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 12
+          },
+          "widget": {
+            "name": "table-daily-summary",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`outdoor_avg_c`",
+                      "name": "outdoor_avg_c"
+                    },
+                    {
+                      "expression": "`supply_avg_c`",
+                      "name": "supply_avg_c"
+                    },
+                    {
+                      "expression": "`delta_t_avg_k`",
+                      "name": "delta_t_avg_k"
+                    },
+                    {
+                      "expression": "`superheat_avg_k`",
+                      "name": "superheat_avg_k"
+                    },
+                    {
+                      "expression": "`compr_duty_pct`",
+                      "name": "compr_duty_pct"
+                    },
+                    {
+                      "expression": "`heater_kwh_day`",
+                      "name": "heater_kwh_day"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Date",
+                    "fieldName": "log_date"
+                  },
+                  {
+                    "displayName": "Outdoor °C",
+                    "fieldName": "outdoor_avg_c"
+                  },
+                  {
+                    "displayName": "Supply °C",
+                    "fieldName": "supply_avg_c"
+                  },
+                  {
+                    "displayName": "Floor DT K",
+                    "fieldName": "delta_t_avg_k"
+                  },
+                  {
+                    "displayName": "Superheat K",
+                    "fieldName": "superheat_avg_k"
+                  },
+                  {
+                    "displayName": "Compr Duty %",
+                    "fieldName": "compr_duty_pct"
+                  },
+                  {
+                    "displayName": "Heater kWh",
+                    "fieldName": "heater_kwh_day"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Summary"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "name": "flow_diagnostics",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Alarms & Health",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Alarm Episodes & Data Quality"
+              ]
+            },
+            "name": "ah-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "All alarm events with operational context — use for root-cause diagnosis"
+              ]
+            },
+            "name": "ah-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Alarm Episodes"
+              ]
+            },
+            "name": "section-alarms"
+          }
+        },
+        {
+          "position": {
+            "height": 7,
+            "width": 6,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "name": "table-alarms",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_alarms",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`alarm_number`",
+                      "name": "alarm_number"
+                    },
+                    {
+                      "expression": "`start_time_str`",
+                      "name": "start_time_str"
+                    },
+                    {
+                      "expression": "`duration_min`",
+                      "name": "duration_min"
+                    },
+                    {
+                      "expression": "`outdoor_avg_c`",
+                      "name": "outdoor_avg_c"
+                    },
+                    {
+                      "expression": "`superheat_avg_k`",
+                      "name": "superheat_avg_k"
+                    },
+                    {
+                      "expression": "`delta_t_avg_k`",
+                      "name": "delta_t_avg_k"
+                    },
+                    {
+                      "expression": "`hp_avg_bar`",
+                      "name": "hp_avg_bar"
+                    },
+                    {
+                      "expression": "`discharge_avg_c`",
+                      "name": "discharge_avg_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Date",
+                    "fieldName": "log_date"
+                  },
+                  {
+                    "displayName": "Alarm #",
+                    "fieldName": "alarm_number"
+                  },
+                  {
+                    "displayName": "Start Time",
+                    "fieldName": "start_time_str"
+                  },
+                  {
+                    "displayName": "Duration (min)",
+                    "fieldName": "duration_min"
+                  },
+                  {
+                    "displayName": "Outdoor °C",
+                    "fieldName": "outdoor_avg_c"
+                  },
+                  {
+                    "displayName": "Superheat K",
+                    "fieldName": "superheat_avg_k"
+                  },
+                  {
+                    "displayName": "Floor DT K",
+                    "fieldName": "delta_t_avg_k"
+                  },
+                  {
+                    "displayName": "HP Bar",
+                    "fieldName": "hp_avg_bar"
+                  },
+                  {
+                    "displayName": "Discharge °C",
+                    "fieldName": "discharge_avg_c"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Alarm Episodes"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 10
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Data Quality"
+              ]
+            },
+            "name": "section-quality"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 11
+          },
+          "widget": {
+            "name": "table-quality",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_quality",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`total_samples`",
+                      "name": "total_samples"
+                    },
+                    {
+                      "expression": "`coverage_pct`",
+                      "name": "coverage_pct"
+                    },
+                    {
+                      "expression": "`logged_hours`",
+                      "name": "logged_hours"
+                    },
+                    {
+                      "expression": "`max_gap_seconds`",
+                      "name": "max_gap_seconds"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Date",
+                    "fieldName": "log_date"
+                  },
+                  {
+                    "displayName": "Total Samples",
+                    "fieldName": "total_samples"
+                  },
+                  {
+                    "displayName": "Coverage %",
+                    "fieldName": "coverage_pct"
+                  },
+                  {
+                    "displayName": "Logged Hours",
+                    "fieldName": "logged_hours"
+                  },
+                  {
+                    "displayName": "Max Gap (s)",
+                    "fieldName": "max_gap_seconds"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Data Quality per Day"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "name": "alarms_health",
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

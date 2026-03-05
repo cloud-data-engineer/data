@@ -1,0 +1,29 @@
+resources:
+  dashboards:
+    nibe_dashboard_en:
+      display_name: NIBE Heat Pump Dashboard
+      file_path: ../src/nibe_heat_pump_dashboard.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: ${var.schema}
+      permissions:
+        - level: CAN_RUN
+          group_name: "users"
+    nibe_daily_operations:
+      display_name: NIBE Heat Pump — Daily Operations
+      file_path: ../src/nibe_heat_pump_daily_operations.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: ${var.schema}
+      permissions:
+        - level: CAN_RUN
+          group_name: "users"
+    nibe_dashboard_pl:
+      display_name: NIBE Pompa Ciepła — Dashboard PL
+      file_path: ../src/nibe_dashboard_pl.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      dataset_catalog: ${var.catalog}
+      dataset_schema: ${var.schema}
+      permissions:
+        - level: CAN_RUN
+          group_name: "users"

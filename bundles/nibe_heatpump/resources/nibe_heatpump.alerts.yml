@@ -1,0 +1,152 @@
+resources:
+  alerts:
+    nibe_high_delta_t:
+      display_name: "NIBE — High Delta T Alert"
+      custom_summary: "Alert when floor heating delta T exceeds 6K"
+      query_text: |
+        SELECT log_date, delta_t_avg_k, outdoor_avg_c, heater_duty_pct
+        FROM ${var.env_scope}_raw.${var.schema}.gold_nibe_daily_summary
+        WHERE log_date = DATE_SUB(CURRENT_DATE(), 1)
+          AND delta_t_avg_k > 6
+      warehouse_id: ${var.warehouse_id}
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: delta_t_avg_k
+          aggregation: MAX
+        threshold:
+          value:
+            double_value: 6.0
+        notification:
+          notify_on_ok: false
+          retrigger_seconds: 86400
+      schedule:
+        pause_status: UNPAUSED
+        quartz_cron_schedule: "0 0 7 * * ?"
+        timezone_id: "Europe/Warsaw"
+
+    nibe_negative_superheat:
+      display_name: "NIBE — Negative Superheat Alert"
+      custom_summary: "Alert when negative superheat exceeds 20%"
+      query_text: |
+        SELECT log_date, neg_superheat_pct, superheat_avg_k, discharge_max_c
+        FROM ${var.env_scope}_raw.${var.schema}.gold_nibe_daily_summary
+        WHERE log_date = DATE_SUB(CURRENT_DATE(), 1)
+          AND neg_superheat_pct > 20
+      warehouse_id: ${var.warehouse_id}
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: neg_superheat_pct
+          aggregation: MAX
+        threshold:
+          value:
+            double_value: 20.0
+        notification:
+          notify_on_ok: false
+          retrigger_seconds: 86400
+      schedule:
+        pause_status: UNPAUSED
+        quartz_cron_schedule: "0 0 7 * * ?"
+        timezone_id: "Europe/Warsaw"
+
+    nibe_heater_mild_temp:
+      display_name: "NIBE — Heater at Mild Temperature Alert"
+      custom_summary: "Alert when heater runs above -10C outdoor temp"
+      query_text: |
+        SELECT log_date, heater_duty_pct, heater_energy_kwh, outdoor_avg_c, delta_t_avg_k
+        FROM ${var.env_scope}_raw.${var.schema}.gold_nibe_daily_summary
+        WHERE log_date = DATE_SUB(CURRENT_DATE(), 1)
+          AND heater_duty_pct > 5
+          AND outdoor_avg_c > -10
+      warehouse_id: ${var.warehouse_id}
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: heater_duty_pct
+          aggregation: MAX
+        threshold:
+          value:
+            double_value: 5.0
+        notification:
+          notify_on_ok: false
+          retrigger_seconds: 86400
+      schedule:
+        pause_status: UNPAUSED
+        quartz_cron_schedule: "0 0 7 * * ?"
+        timezone_id: "Europe/Warsaw"
+
+    nibe_data_gap:
+      display_name: "NIBE — Data Gap Alert"
+      custom_summary: "Alert when data coverage is poor"
+      query_text: |
+        SELECT log_date, coverage_pct, max_gap_seconds, logged_hours
+        FROM ${var.env_scope}_raw.${var.schema}.gold_nibe_data_quality
+        WHERE log_date = DATE_SUB(CURRENT_DATE(), 1)
+          AND (coverage_pct < 80 OR max_gap_seconds > 600)
+      warehouse_id: ${var.warehouse_id}
+      evaluation:
+        comparison_operator: LESS_THAN
+        source:
+          name: coverage_pct
+          aggregation: MIN
+        threshold:
+          value:
+            double_value: 80.0
+        notification:
+          notify_on_ok: false
+          retrigger_seconds: 86400
+      schedule:
+        pause_status: UNPAUSED
+        quartz_cron_schedule: "0 0 7 * * ?"
+        timezone_id: "Europe/Warsaw"
+
+    nibe_dm_saturation:
+      display_name: "NIBE — DM Saturation Alert"
+      custom_summary: "Alert when degree minutes approach saturation"
+      query_text: |
+        SELECT log_date, dm_min, dm_avg, outdoor_min_c, heater_duty_pct
+        FROM ${var.env_scope}_raw.${var.schema}.gold_nibe_daily_summary
+        WHERE log_date = DATE_SUB(CURRENT_DATE(), 1)
+          AND dm_min < -500
+      warehouse_id: ${var.warehouse_id}
+      evaluation:
+        comparison_operator: LESS_THAN
+        source:
+          name: dm_min
+          aggregation: MIN
+        threshold:
+          value:
+            double_value: -500.0
+        notification:
+          notify_on_ok: false
+          retrigger_seconds: 86400
+      schedule:
+        pause_status: UNPAUSED
+        quartz_cron_schedule: "0 0 7 * * ?"
+        timezone_id: "Europe/Warsaw"
+
+    nibe_actionable_alarm:
+      display_name: "NIBE — Actionable Alarm Alert"
+      custom_summary: "Alert when actionable alarms occur (excluding defrost)"
+      query_text: |
+        SELECT log_date, alarm_excl_183_pct, alarm_codes
+        FROM ${var.env_scope}_raw.${var.schema}.gold_nibe_daily_summary
+        WHERE log_date = DATE_SUB(CURRENT_DATE(), 1)
+          AND alarm_excl_183_pct > 5
+      warehouse_id: ${var.warehouse_id}
+      evaluation:
+        comparison_operator: GREATER_THAN
+        source:
+          name: alarm_excl_183_pct
+          aggregation: MAX
+        threshold:
+          value:
+            double_value: 5.0
+        notification:
+          notify_on_ok: false
+          retrigger_seconds: 86400
+      schedule:
+        pause_status: UNPAUSED
+        quartz_cron_schedule: "0 0 7 * * ?"
+        timezone_id: "Europe/Warsaw"
