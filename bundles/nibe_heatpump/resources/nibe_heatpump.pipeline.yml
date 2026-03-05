@@ -1,0 +1,58 @@
+resources:
+  pipelines:
+    nibe_heatpump:
+      name: nibe_heatpump
+      catalog: ${var.env_scope}_raw
+      schema: ${var.schema}
+      serverless: true
+
+      libraries:
+        - file:
+            path: ../src/nibe_heatpump/transformations/bronze_nibe_logs.py
+        - file:
+            path: ../src/nibe_heatpump/transformations/silver_nibe_logs.py
+        - file:
+            path: ../src/nibe_heatpump/transformations/gold_nibe_diagnostics.py
+        - file:
+            path: ../src/nibe_heatpump/transformations/gold_nibe_agent.py
+        - file:
+            path: ../src/nibe_heatpump/transformations/gold_nibe_cycles_ml.py
+
+      configuration:
+        # Environment scope (dev/prod) — used inside DLT scripts to build catalog names
+        # e.g. dev → dev_bronze.nibe, dev_silver.nibe, dev_gold.nibe
+        env_scope: ${var.env_scope}
+        # Path to the Unity Catalog Volume folder where .LOG files are uploaded
+        source_volume_path: ${var.source_volume_path}
+        # Auto Loader stores schema inference state here (separate from source data)
+        schema_location: ${var.schema_location}
+        # Retry transient failures (network blips, Auto Loader timeouts) up to 3 times
+        pipelines.numRetries: "3"
+
+      development: ${var.development}
+
+      # Pipeline run event log — every update, flow failure, and data quality event is
+      # written as a row in this Delta table. Use it to audit runs, track data freshness,
+      # build SLA dashboards, and feed alert pipelines.
+      # Query with: SELECT * FROM dev_raw.nibe.nibe_heatpump_event_log ORDER BY timestamp DESC
+      event_log:
+        catalog: ${var.env_scope}_raw
+        schema: ${var.schema}
+        name: nibe_heatpump_event_log
+
+      # Email alerts — sent by Databricks when a run fails or a flow errors.
+      # on-update-failure      : the triggered update finished with errors
+      # on-update-fatal-failure: the update crashed and could not recover
+      # on-flow-failure        : an individual table/view failed within a run
+      notifications:
+        - email_recipients:
+            - your@email.com
+          alerts:
+            - on-update-failure
+            - on-update-fatal-failure
+            - on-flow-failure
+
+      tags:
+        project: nibe_heatpump
+        domain: iot
+        use_case: ai_diagnostics

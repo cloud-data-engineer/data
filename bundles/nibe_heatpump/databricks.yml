@@ -1,0 +1,53 @@
+# Databricks Asset Bundle — NIBE Heat Pump Log Pipeline
+# See https://docs.databricks.com/dev-tools/bundles/index.html
+bundle:
+  name: nibe_heatpump
+
+include:
+  - resources/*.yml
+
+
+variables:
+  env_scope:
+    description: "Environment scope (dev/prod) for schema naming"
+  catalog:
+    description: "Unity Catalog catalog name"
+  schema:
+    description: "Base schema name (e.g. nibe)"
+  source_volume_path:
+    description: "Unity Catalog Volume path where .LOG files are uploaded"
+  schema_location:
+    description: "Volume path for Auto Loader schema checkpoint storage"
+  development:
+    description: "Enable development mode for the pipeline (true in dev, false in prod)"
+  warehouse_id:
+    description: "SQL Warehouse ID for queries and alerts"
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
+    variables:
+      env_scope: dev
+      catalog: dev_raw
+      schema: nibe
+      source_volume_path: /Volumes/dev_raw/lz/nibe/raw_logs/
+      schema_location: /Volumes/dev_raw/lz/nibe/autoloader_schema/
+      development: true
+      warehouse_id: 48f717bd780befa1
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
+      root_path: /Workspace/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env_scope: prod
+      catalog: prod_raw
+      schema: nibe
+      source_volume_path: /Volumes/prod_raw/nibe_raw/raw_logs/
+      schema_location: /Volumes/prod_raw/nibe_raw/autoloader_schema/
+      development: false
+      warehouse_id: 48f717bd780befa1

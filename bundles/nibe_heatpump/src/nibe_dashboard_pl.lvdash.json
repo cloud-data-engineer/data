@@ -1,0 +1,1841 @@
+{
+  "datasets": [
+    {
+      "displayName": "Kluczowe wskaźniki — podsumowanie",
+      "name": "kpi_overall",
+      "queryLines": [
+        "SELECT   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS neg_superheat_pct,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(MAX(bt14_discharge_c), 1) AS max_discharge_c,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS total_heater_kwh,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct FROM dev_raw.nibe.silver_nibe_logs "
+      ]
+    },
+    {
+      "displayName": "Statystyki dzienne",
+      "name": "daily_extended",
+      "queryLines": [
+        "SELECT   log_date_parsed AS log_date,   MIN(bt1_outdoor_temp_c) AS min_outdoor_c,   MAX(bt1_outdoor_temp_c) AS max_outdoor_c,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(MAX(CASE WHEN compr_freq_act_hz > 0 THEN bt25_supply_c - bt71_return_c END), 1) AS max_delta_t_k,   ROUND(AVG(CASE WHEN priority_mode = 30 THEN calc_supply_c END), 1) AS avg_calc_supply_c,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   MIN(degree_minutes) AS min_dm,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN compr_freq_act_hz END), 0) AS avg_freq_hz,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS heater_duty_pct,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS heater_energy_kwh,   MAX(tot_int_add_kw) AS heater_max_kw,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS negative_superheat_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bp4_hp_bar END), 1) AS avg_hp_bar,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt14_discharge_c END), 1) AS avg_discharge_c,   SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) AS alarm_samples,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN priority_mode = 30 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS co_pct,   COUNT(*) AS total_samples FROM dev_raw.nibe.silver_nibe_logs GROUP BY log_date_parsed ORDER BY log_date_parsed "
+      ]
+    },
+    {
+      "displayName": "Obieg chłodniczy — interwały 5-min",
+      "name": "superheat_5min",
+      "queryLines": [
+        "SELECT   TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) AS ts_5min,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar,   ROUND(AVG(bt14_discharge_c), 1) AS avg_discharge_c FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 GROUP BY TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) ORDER BY ts_5min "
+      ]
+    },
+    {
+      "displayName": "Krzywa grzewcza",
+      "name": "heating_curve",
+      "queryLines": [
+        "SELECT   ROUND(bt1_outdoor_temp_c, 0) AS bt1_rounded,   ROUND(AVG(calc_supply_c), 1) AS avg_calc_supply,   ROUND(AVG(bt25_supply_c), 1) AS avg_actual_supply,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS heater_pct,   COUNT(*) AS samples FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY ROUND(bt1_outdoor_temp_c, 0) HAVING COUNT(*) > 50 ORDER BY bt1_rounded "
+      ]
+    },
+    {
+      "displayName": "Jakość przepływu wg pasma mocy",
+      "name": "flow_quality",
+      "queryLines": [
+        "SELECT   CASE     WHEN compr_freq_act_hz BETWEEN 20 AND 50 THEN '20-50 Hz'     WHEN compr_freq_act_hz BETWEEN 50 AND 80 THEN '50-80 Hz'     WHEN compr_freq_act_hz BETWEEN 80 AND 110 THEN '80-110 Hz'     WHEN compr_freq_act_hz > 110 THEN '110+ Hz'   END AS freq_band,   ROUND(AVG(bt25_supply_c - bt71_return_c), 1) AS avg_delta_t_k,   ROUND(MAX(bt25_supply_c - bt71_return_c), 1) AS max_delta_t_k,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   COUNT(*) AS samples FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY 1 ORDER BY 1 "
+      ]
+    },
+    {
+      "displayName": "Szczegoly alarmow",
+      "name": "alarm_detail",
+      "queryLines": [
+        "SELECT   alarm_number,   CASE alarm_number     WHEN 183 THEN '183: Alarm miekki WC'     WHEN 271 THEN '271: Stop niska temp'     WHEN 163 THEN '163: Wyzwolenie WC'     WHEN 162 THEN '162: Wyzwolenie WC max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS samples,   ROUND(COUNT(*) * 5.0 / 3600, 1) AS duration_hours,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(compr_freq_act_hz), 0) AS avg_freq_hz,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar FROM dev_raw.nibe.silver_nibe_logs WHERE alarm_active GROUP BY alarm_number ORDER BY samples DESC "
+      ]
+    },
+    {
+      "displayName": "Rozklad godzinowy alarmow",
+      "name": "hourly_alarm",
+      "queryLines": [
+        "SELECT   HOUR(logged_at) AS hour_of_day,   CASE alarm_number     WHEN 183 THEN '183: Alarm WC'     WHEN 271 THEN '271: Stop niska T'     WHEN 163 THEN '163: Wyzwol. WC'     WHEN 162 THEN '162: Wyzwol. max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS alarm_samples FROM dev_raw.nibe.silver_nibe_logs WHERE alarm_active GROUP BY HOUR(logged_at), alarm_number ORDER BY hour_of_day "
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "displayName": "Przeglad dzienny",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## NIBE Pompa Ciepla — Przeglad dzienny"
+              ]
+            },
+            "name": "pl1-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Podsumowanie 7 dni — 12-18 stycznia  |  Cele: DeltaT 3-5K  Przegrzanie 3-7K  DM > -200  Grzalka 0 kWh"
+              ]
+            },
+            "name": "pl1-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "pl-kpi-delta-t",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Sr. DeltaT (K)",
+                  "fieldName": "avg_delta_t_k"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sr. DeltaT (K) — Cel 3-5K"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 2
+          },
+          "widget": {
+            "name": "pl-kpi-dm",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_dm`",
+                      "name": "avg_dm"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Sr. stopniominuty",
+                  "fieldName": "avg_dm"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sr. stopniominuty — Cel > -200"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "pl-kpi-neg-sh",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`neg_superheat_pct`",
+                      "name": "neg_superheat_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Ujemne przegrzanie %",
+                  "fieldName": "neg_superheat_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ujemne przegrzanie % — Cel < 5%"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 5
+          },
+          "widget": {
+            "name": "pl-kpi-heater",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`total_heater_kwh`",
+                      "name": "total_heater_kwh"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Energia grzalki kWh",
+                  "fieldName": "total_heater_kwh"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Energia grzalki kWh — Cel 0"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 5
+          },
+          "widget": {
+            "name": "pl-kpi-alarm",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`alarm_pct`",
+                      "name": "alarm_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Czas alarmu %",
+                  "fieldName": "alarm_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Czas alarmu %"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 5
+          },
+          "widget": {
+            "name": "pl-kpi-compr",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`compr_duty_pct`",
+                      "name": "compr_duty_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Praca sprezarki %",
+                  "fieldName": "compr_duty_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Praca sprezarki %"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 8
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Temperatury dzienne i DeltaT"
+              ]
+            },
+            "name": "pl-sec-temp"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "name": "pl-chart-temp",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`min_outdoor_c`",
+                      "name": "min_outdoor_c"
+                    },
+                    {
+                      "expression": "`max_outdoor_c`",
+                      "name": "max_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_outdoor_c`",
+                      "name": "avg_outdoor_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Data",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Min (C)",
+                      "fieldName": "min_outdoor_c"
+                    },
+                    {
+                      "displayName": "Max (C)",
+                      "fieldName": "max_outdoor_c"
+                    },
+                    {
+                      "displayName": "Sr. (C)",
+                      "fieldName": "avg_outdoor_c"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Temperatura zewnetrzna (C)"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 9
+          },
+          "widget": {
+            "name": "pl-chart-dt",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    },
+                    {
+                      "expression": "`max_delta_t_k`",
+                      "name": "max_delta_t_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Data",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Sr. DeltaT (K)",
+                      "fieldName": "avg_delta_t_k"
+                    },
+                    {
+                      "displayName": "Maks DeltaT (K)",
+                      "fieldName": "max_delta_t_k"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "DeltaT zasilanie-powrot (K) — Cel 3-5K"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Stopniominuty i zuzycie grzalki"
+              ]
+            },
+            "name": "pl-sec-dm"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "name": "pl-chart-dm",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`avg_dm`",
+                      "name": "avg_dm"
+                    },
+                    {
+                      "expression": "`min_dm`",
+                      "name": "min_dm"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Data",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Sr. DM",
+                      "fieldName": "avg_dm"
+                    },
+                    {
+                      "displayName": "Min DM",
+                      "fieldName": "min_dm"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Stopniominuty — Cel > -200"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 15
+          },
+          "widget": {
+            "name": "pl-chart-heater",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`heater_energy_kwh`",
+                      "name": "heater_energy_kwh"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Data",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Energia grzalki (kWh)",
+                  "fieldName": "heater_energy_kwh",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Energia grzalki elektrycznej (kWh/dzien)"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 20
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Tabela podsumowania dziennego"
+              ]
+            },
+            "name": "pl-sec-table"
+          }
+        },
+        {
+          "position": {
+            "height": 7,
+            "width": 6,
+            "x": 0,
+            "y": 21
+          },
+          "widget": {
+            "name": "pl-table-daily",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "daily_extended",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`min_outdoor_c`",
+                      "name": "min_outdoor_c"
+                    },
+                    {
+                      "expression": "`max_outdoor_c`",
+                      "name": "max_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_outdoor_c`",
+                      "name": "avg_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    },
+                    {
+                      "expression": "`avg_dm`",
+                      "name": "avg_dm"
+                    },
+                    {
+                      "expression": "`compr_duty_pct`",
+                      "name": "compr_duty_pct"
+                    },
+                    {
+                      "expression": "`heater_energy_kwh`",
+                      "name": "heater_energy_kwh"
+                    },
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    },
+                    {
+                      "expression": "`negative_superheat_pct`",
+                      "name": "negative_superheat_pct"
+                    },
+                    {
+                      "expression": "`avg_hp_bar`",
+                      "name": "avg_hp_bar"
+                    },
+                    {
+                      "expression": "`alarm_pct`",
+                      "name": "alarm_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Data",
+                    "fieldName": "log_date"
+                  },
+                  {
+                    "displayName": "Min zewn. C",
+                    "fieldName": "min_outdoor_c"
+                  },
+                  {
+                    "displayName": "Maks zewn. C",
+                    "fieldName": "max_outdoor_c"
+                  },
+                  {
+                    "displayName": "Sr. zewn. C",
+                    "fieldName": "avg_outdoor_c"
+                  },
+                  {
+                    "displayName": "Sr. DeltaT K",
+                    "fieldName": "avg_delta_t_k"
+                  },
+                  {
+                    "displayName": "Sr. DM",
+                    "fieldName": "avg_dm"
+                  },
+                  {
+                    "displayName": "Praca spr. %",
+                    "fieldName": "compr_duty_pct"
+                  },
+                  {
+                    "displayName": "Grzalka kWh",
+                    "fieldName": "heater_energy_kwh"
+                  },
+                  {
+                    "displayName": "Przegrzanie K",
+                    "fieldName": "avg_superheat_k"
+                  },
+                  {
+                    "displayName": "Uj. przegr. %",
+                    "fieldName": "negative_superheat_pct"
+                  },
+                  {
+                    "displayName": "Cisn. WC bar",
+                    "fieldName": "avg_hp_bar"
+                  },
+                  {
+                    "displayName": "Alarm %",
+                    "fieldName": "alarm_pct"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Podsumowanie dzienne"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        }
+      ],
+      "name": "przeglad_dzienny",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Obieg chlodniczy",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Obieg chlodniczy — stan ukladu"
+              ]
+            },
+            "name": "pl2-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Przegrzanie ssania (BT17-BT16), cisnienie wysokie i temperatura tloczenia w czasie"
+              ]
+            },
+            "name": "pl2-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "name": "pl-kpi-superheat",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Sr. przegrzanie (K)",
+                  "fieldName": "avg_superheat_k"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sr. przegrzanie (K) — Cel 3-7K"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 2,
+            "y": 2
+          },
+          "widget": {
+            "name": "pl-kpi-neg-sh2",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`neg_superheat_pct`",
+                      "name": "neg_superheat_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Uj. przegrzanie %",
+                  "fieldName": "neg_superheat_pct"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ujemne przegrzanie % — Cel < 5%"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 2,
+            "x": 4,
+            "y": 2
+          },
+          "widget": {
+            "name": "pl-kpi-hp",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "kpi_overall",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`max_hp_bar`",
+                      "name": "max_hp_bar"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "value": {
+                  "displayName": "Maks cisn. WC (bar)",
+                  "fieldName": "max_hp_bar"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Maks cisnienie WC (bar) — Ostrzez. > 28"
+              },
+              "version": 2,
+              "widgetType": "counter"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 5
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Przegrzanie ssania w czasie (interwaly 5-min, sprezarka pracujaca)"
+              ]
+            },
+            "name": "pl-sec-sh"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 6
+          },
+          "widget": {
+            "name": "pl-chart-sh",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "superheat_5min",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`ts_5min`",
+                      "name": "ts_5min"
+                    },
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Czas",
+                  "fieldName": "ts_5min",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Przegrzanie (K)",
+                  "fieldName": "avg_superheat_k",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Przegrzanie ssania BT17-BT16 (K) — Cel 3-7K — Ujemne = ryzyko zalania sprezarki"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 11
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Cisnienie wysokie i temperatura tloczenia"
+              ]
+            },
+            "name": "pl-sec-pressure"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 12
+          },
+          "widget": {
+            "name": "pl-chart-hp",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "superheat_5min",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`ts_5min`",
+                      "name": "ts_5min"
+                    },
+                    {
+                      "expression": "`avg_hp_bar`",
+                      "name": "avg_hp_bar"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Czas",
+                  "fieldName": "ts_5min",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Cisnienie WC (bar)",
+                  "fieldName": "avg_hp_bar",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Cisnienie wysokie BP4 (bar) — Ostrzezenie > 28 bar"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 12
+          },
+          "widget": {
+            "name": "pl-chart-discharge",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "superheat_5min",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`ts_5min`",
+                      "name": "ts_5min"
+                    },
+                    {
+                      "expression": "`avg_discharge_c`",
+                      "name": "avg_discharge_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Czas",
+                  "fieldName": "ts_5min",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Temp. tloczenia (C)",
+                  "fieldName": "avg_discharge_c",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Temperatura tloczenia BT14 (C) — Ostrzezenie > 100C"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        }
+      ],
+      "name": "obieg_chlodniczy",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Przeplyw i krzywa grzewcza",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Jakosc przeplywu i krzywa grzewcza"
+              ]
+            },
+            "name": "pl3-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "DeltaT wg obciazenia sprezarki — krzywa grzewcza — praca grzalki wg temperatury zewnetrznej"
+              ]
+            },
+            "name": "pl3-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Krzywa grzewcza: wyliczone vs rzeczywiste zasilanie"
+              ]
+            },
+            "name": "pl-sec-hc"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "name": "pl-chart-hc",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "heating_curve",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`bt1_rounded`",
+                      "name": "bt1_rounded"
+                    },
+                    {
+                      "expression": "`avg_calc_supply`",
+                      "name": "avg_calc_supply"
+                    },
+                    {
+                      "expression": "`avg_actual_supply`",
+                      "name": "avg_actual_supply"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Temp. zewn. (C)",
+                  "fieldName": "bt1_rounded",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Wyliczone zasil. (C)",
+                      "fieldName": "avg_calc_supply"
+                    },
+                    {
+                      "displayName": "Rzecz. zasil. (C)",
+                      "fieldName": "avg_actual_supply"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Krzywa grzewcza: temp. zewnetrzna vs zasilanie CO"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 8
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Jakosc przeplywu i przegrzanie wg pasma czestotliwosci"
+              ]
+            },
+            "name": "pl-sec-flow"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "name": "pl-chart-dt-freq",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "flow_quality",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`freq_band`",
+                      "name": "freq_band"
+                    },
+                    {
+                      "expression": "`avg_delta_t_k`",
+                      "name": "avg_delta_t_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Pasmo czestotliwosci",
+                  "fieldName": "freq_band",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Sr. DeltaT (K)",
+                  "fieldName": "avg_delta_t_k",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sr. DeltaT wg obciazenia sprezarki — Cel 3-5K"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 9
+          },
+          "widget": {
+            "name": "pl-chart-sh-freq",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "flow_quality",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`freq_band`",
+                      "name": "freq_band"
+                    },
+                    {
+                      "expression": "`avg_superheat_k`",
+                      "name": "avg_superheat_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Pasmo czestotliwosci",
+                  "fieldName": "freq_band",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Sr. przegrzanie (K)",
+                  "fieldName": "avg_superheat_k",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Sr. przegrzanie wg obciazenia sprezarki — Cel 3-7K"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 14
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Praca grzalki elektrycznej wg temperatury zewnetrznej"
+              ]
+            },
+            "name": "pl-sec-heater"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "name": "pl-chart-heater-bt1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "heating_curve",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`bt1_rounded`",
+                      "name": "bt1_rounded"
+                    },
+                    {
+                      "expression": "`heater_pct`",
+                      "name": "heater_pct"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Temp. zewn. (C)",
+                  "fieldName": "bt1_rounded",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "displayName": "Grzalka aktywna %",
+                  "fieldName": "heater_pct",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Grzalka elektryczna aktywna % wg temperatury zewnetrznej"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        }
+      ],
+      "name": "przeplyw_krzywa",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Alarmy",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Analiza alarmow"
+              ]
+            },
+            "name": "pl4-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Rozklad alarmow wg kodu, rozklad godzinowy i kontekst operacyjny"
+              ]
+            },
+            "name": "pl4-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Podsumowanie alarmow wg kodu"
+              ]
+            },
+            "name": "pl-sec-alarm"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 6,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "name": "pl-table-alarm",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "alarm_detail",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`alarm_label`",
+                      "name": "alarm_label"
+                    },
+                    {
+                      "expression": "`samples`",
+                      "name": "samples"
+                    },
+                    {
+                      "expression": "`duration_hours`",
+                      "name": "duration_hours"
+                    },
+                    {
+                      "expression": "`avg_outdoor_c`",
+                      "name": "avg_outdoor_c"
+                    },
+                    {
+                      "expression": "`avg_freq_hz`",
+                      "name": "avg_freq_hz"
+                    },
+                    {
+                      "expression": "`avg_hp_bar`",
+                      "name": "avg_hp_bar"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "columns": [
+                  {
+                    "displayName": "Kod alarmu",
+                    "fieldName": "alarm_label"
+                  },
+                  {
+                    "displayName": "Proba",
+                    "fieldName": "samples"
+                  },
+                  {
+                    "displayName": "Czas (h)",
+                    "fieldName": "duration_hours"
+                  },
+                  {
+                    "displayName": "Sr. temp. zewn. C",
+                    "fieldName": "avg_outdoor_c"
+                  },
+                  {
+                    "displayName": "Sr. czest. Hz",
+                    "fieldName": "avg_freq_hz"
+                  },
+                  {
+                    "displayName": "Sr. cis. WC bar",
+                    "fieldName": "avg_hp_bar"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Statystyki alarmow wg kodu"
+              },
+              "version": 2,
+              "widgetType": "table"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Rozklad godzinowy alarmow (warstwowy wg kodu)"
+              ]
+            },
+            "name": "pl-sec-hourly"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 6,
+            "x": 0,
+            "y": 10
+          },
+          "widget": {
+            "name": "pl-chart-hourly",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "hourly_alarm",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`hour_of_day`",
+                      "name": "hour_of_day"
+                    },
+                    {
+                      "expression": "`alarm_label`",
+                      "name": "alarm_label"
+                    },
+                    {
+                      "expression": "`alarm_samples`",
+                      "name": "alarm_samples"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "color": {
+                  "displayName": "Kod alarmu",
+                  "fieldName": "alarm_label",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "x": {
+                  "displayName": "Godzina",
+                  "fieldName": "hour_of_day",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "displayName": "Liczba prob alarmowych",
+                  "fieldName": "alarm_samples",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Zdarzenia alarmowe wg godziny doby"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 6,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Kody alarmow** | **183 — Alarm miekki wysokiego cisnienia EB101** (17.2h, sr. -7.6C zewn.): Sprezarka pracuje ponizej minimalnej czestotliwosci z powodu wysokiego cisnienia WC. Wzorzec cykliczny; alarm miekki — uklad kontynuuje prace. **271 — Stop przy niskiej temperaturze** (15.6h, sr. -20.7C zewn.): Sprezarka zatrzymana — zbyt niska temperatura zewnetrzna. Ochrona temperaturowa. **163 — Wyzwolenie WC** (0.2h, ok. 32 bar): Twardy alarm, zatrzymanie przy wysokim cisnieniu. **162 — Wyzwolenie WC max** (<0.1h, 36.8 bar): Ekstremalny skok cisnienia. Przyczyna 162/163: za male przeplyw -> wysokie DeltaT -> rosnace cisnienie skraplania."
+              ]
+            },
+            "name": "pl-alarm-ref"
+          }
+        }
+      ],
+      "name": "alarmy",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Przewodnik po wskaznikach",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Przewodnik — co widze na dashboardzie?"
+              ]
+            },
+            "name": "pl5-title"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "Definicje wskaznikow, progi wartosci, ocena aktualnego stanu ukladu"
+              ]
+            },
+            "name": "pl5-subtitle"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 2
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Wskazniki przeplywu i zapotrzebowania na cieplo"
+              ]
+            },
+            "name": "pl-sec-przeplyw"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 0,
+            "y": 3
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**DeltaT zasilanie-powrot (K)** — Roznica temperatur miedzy zasilaniem CO (BT25) a powrotem (BT71). Glowny wskaznik wydajnosci przeplywu wody. OK: 3-5K | Ostrzezenie: 5-7K | Krytyczne: >7K powoduje alarmy cisnienia WC. Aktualnie sr.: 4.5K (akceptowalne), ale przy pelnym obciazeniu sprezarki osiaga 6.4K — wartosc graniczna. Wysokie DeltaT oznacza za maly przeplyw wody — cieplo nie moze sie efektywnie przekazac, cisnienie WC rosnie. Rozwiazanie: odpowietrzyc wszystkie grzejniki i petle podlogowe, zwiekszyc predkosc pompy GP12."
+              ]
+            },
+            "name": "pl-g-dt"
+          }
+        },
+        {
+          "position": {
+            "height": 5,
+            "width": 3,
+            "x": 3,
+            "y": 3
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Stopniominuty (DM)** — Integrator zapotrzebowania na cieplo NIBE. Zaczyna od 0, rosnie ujemnie gdy dom stygnie ponizej zadanego. Sprezarka startuje przy ok. -120 DM. OK: sr. > -200 | Ostrzezenie: -200 do -400 | Krytyczne: <-400 zablokowane = uklad nie nadaza za zapotrzebowaniem. Aktualnie sr.: -370 (krytyczne). Sprezarka pracuje z maksymalna czestotliwoscia, ale wciaz nie utrzymuje temperatury. Niedobor pokrywa grzalka elektryczna 3x mniej wydajnie."
+              ]
+            },
+            "name": "pl-g-dm"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 8
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Wskazniki obiegu chlodniczego"
+              ]
+            },
+            "name": "pl-sec-chlodniczy"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 3,
+            "x": 0,
+            "y": 9
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Przegrzanie ssania BT17-BT16 (K)** — Margines temperatury pary czynnika chlodniczego ponad punkt parowania. Chroni sprezarke przed ciekłym czynnikiem wchodzacym do cylindra. OK: 3-7K | Ostrzezenie: <3K lub >15K (za maly nadbior czynnika) | Krytyczne: <0K — ciekly czynnik wchodzi do sprezarki. Aktualnie sr.: 5.9K (OK w sredniej), ale 28.8% czasu pracy sprezarki wykazuje ujemne przegrzanie — to jest krytyczne i moze prowadzic do przyspieszonego zuzycja sprezarki. Dzialanie: serwis HVAC — sprawdzenie kalibracji zaworu rozpreznego i poziomu napelnienia czynnikiem."
+              ]
+            },
+            "name": "pl-g-sh"
+          }
+        },
+        {
+          "position": {
+            "height": 6,
+            "width": 3,
+            "x": 3,
+            "y": 9
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Cisnienie WC BP4 (bar)** — Cisnienie czynnika po stronie skraplacza. OK: <25 bar | Ostrzezenie: 25-28 bar | Krytyczne: >28 bar = alarm miekki 183 (ograniczenie czestotliwosci), >32 bar = wyzwolenie 163 (stop sprezarki). Maks zarejestrowane: 37.9 bar — rejestrowano twarde wyzwolenia. Przyczyna: wysokie DeltaT ogranicza wymiane ciepla, cisnienie skraplania rosnie. **Temperatura tloczenia BT14 (C)** OK: <80 | Ostrzezenie: 80-100 | Krytyczne: >100. Maks: 106.8C — konsekwencja pracy przy wysokim cisnieniu. **Grzalka (kWh)** Cel: 0 kWh/dzien. Lacznie: 389.6 kWh przez 7 dni = ok. 78 EUR vs 26 EUR przy COP 3."
+              ]
+            },
+            "name": "pl-g-pressure"
+          }
+        },
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 15
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Ocena biezacego stanu i plan dzialania"
+              ]
+            },
+            "name": "pl-sec-ocena"
+          }
+        },
+        {
+          "position": {
+            "height": 8,
+            "width": 6,
+            "x": 0,
+            "y": 16
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "**Plan dzialania — kolejnosc priorytetow (dane 12-18 stycznia)** | **(1) NAPRAW PRZEPLYW — najwyzszy efekt, zerowy koszt.** Odpowietrz wszystkie grzejniki, petle ogrzewania podlogowego i sama pompe ciepla. Zwieksz predkosc pompy obiegowej GP12 do maksimum. Sprawdz zawory rownoważace — czy nie sa nadmiernie zamkniete. Cel: zmniejszenie DeltaT z 6.4K do 3-4K przy pelnym obciazeniu. Oczekiwany efekt: cisnienie WC spada ponizej 28 bar, alarmy 183/163/162 znikaja, prawdopodobnie poprawia sie tez ujemne przegrzanie. | **(2) INSPEKCJA CHLODNICZA — zamow serwis HVAC.** 28.8% ujemnego przegrzania przez 7 dni wskazuje na regularny kontakt ciekłego czynnika ze sprezarka. Serwisant powinien sprawdzic nastawe zaworu rozpreznego (cel przegrzania: 5-8K) oraz poziom napelnienia czynnikiem R410A. | **(3) WYDAJNOSC — zarzadzaj oczekiwaniami.** Stopniominuty utkniele na -370 oznaczaja, ze pompa ciepla jest prawidlowo dobrana dla umiarkowanej zimy, ale nie wystarcza ponizej -15C. Opcje: poprawa izolacji budynku, rekalibracja krzywej grzewczej, lub akceptacja grzalki jako wsparcia szczytu. Rozwiazanie (1) jest bezplatne i ma najwyzszy wspolczynnik efektywnosci — zacznij od niego."
+              ]
+            },
+            "name": "pl-g-status"
+          }
+        }
+      ],
+      "name": "przewodnik",
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ]
+}

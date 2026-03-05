@@ -1,0 +1,10 @@
+resources:
+  apps:
+    nibe_diagnostic_app:
+      name: nibe-diagnostic
+      description: "NIBE Heat Pump Diagnostic Suite"
+      source_code_path: ../src/nibe_heatpump/app
+      config:
+        env:
+          - name: ENV_SCOPE
+            value: ${var.env_scope}

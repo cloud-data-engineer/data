@@ -1,0 +1,19 @@
+command:
+  - streamlit
+  - run
+  - nibe_diagnostic_app.py
+  - --server.port
+  - "8080"
+  - --server.address
+  - "0.0.0.0"
+
+resources:
+  - name: nibe_warehouse
+    sql_warehouse:
+      id: 48f717bd780befa1
+
+env:
+  - name: DATABRICKS_HTTP_PATH
+    valueFrom: nibe_warehouse.http_path
+  - name: NIBE_AGENT_ENDPOINT
+    value: databricks-meta-llama-3-3-70b-instruct
