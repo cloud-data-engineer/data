@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "User",
+  "namespace": "com.telco.user",
+  "fields": [
+    {"name": "user_id", "type": "string"},
+    {"name": "msisdn", "type": "string"},
+    {"name": "imsi", "type": "string"},
+    {"name": "imei", "type": "string"},
+    {"name": "plan_name", "type": "string"},
+    {"name": "data_limit_gb", "type": "int"},
+    {"name": "voice_minutes", "type": "int"},
+    {"name": "sms_count", "type": "int"},
+    {"name": "city", "type": "string"},
+    {"name": "state", "type": "string"},
+    {"name": "activation_date", "type": "string"}
+  ]
+}

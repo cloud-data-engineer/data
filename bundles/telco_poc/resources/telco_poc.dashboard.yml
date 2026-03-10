@@ -1,0 +1,8 @@
+resources:
+  dashboards:
+    telco_customer_360:
+      display_name: "Telco CDR Customer 360"
+      file_path: ../src/telco_poc/dashboards/telco_customer_360.lvdash.json
+      warehouse_id: "48f717bd780befa1"
+      embed_credentials: false
+      parent_path: "/Users/pat@clouddata.engineer/dashboards"

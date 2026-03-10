@@ -1,0 +1,31 @@
+resources:
+  pipelines:
+    telco_poc:
+      name: telco_poc
+      target: telco_poc
+      catalog: dev_bronze
+      serverless: true
+      channel: PREVIEW
+      continuous: false
+
+      libraries:
+        - glob:
+            include: ../src/telco_poc/transformations/**
+
+      configuration:
+        # Catalog targets per layer
+        bronze_catalog: dev_bronze
+        silver_catalog: dev_silver
+        gold_catalog: dev_gold
+        # Kafka topic names
+        topic_users: telco-users
+        topic_voice: telco-voice-cdrs
+        topic_data: telco-data-cdrs
+        topic_sms: telco-sms-cdrs
+        topic_voip: telco-voip-cdrs
+        topic_ims: telco-ims-cdrs
+        topic_mms: telco-mms-cdrs
+        topic_roaming: telco-roaming-cdrs
+        topic_wifi_calling: telco-wifi-calling-cdrs
+        # Starting offsets: use 'earliest' to replay all data, 'latest' for live only
+        kafka_starting_offsets: earliest

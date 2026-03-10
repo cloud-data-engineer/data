@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "SMSCDR",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {"name": "cdr_type", "type": "string"},
+    {"name": "eventTimestamp", "type": "long"},
+    {"name": "smsReferenceNumber", "type": "string"},
+    {"name": "originatingNumber", "type": "string"},
+    {"name": "destinationNumber", "type": "string"},
+    {"name": "imsi", "type": "string"},
+    {"name": "smscAddress", "type": "string"},
+    {"name": "messageSize", "type": "int"},
+    {"name": "deliveryStatus", "type": "string"},
+    {"name": "messageType", "type": "string"},
+    {"name": "recordSequenceNumber", "type": "int"},
+    {"name": "chargeAmount", "type": "double"},
+    {"name": "user_id", "type": "string"},
+    {"name": "is_anomaly", "type": "boolean", "default": false},
+    {"name": "anomaly_type", "type": ["null", "string"], "default": null},
+    {"name": "failureReason", "type": ["null", "string"], "default": null}
+  ]
+}

@@ -5,6 +5,7 @@ import argparse
 from confluent_kafka import Producer
 from user_generator import UserGenerator
 from cdr_generator import CDRGenerator
+from anomaly_generator import AnomalyGenerator
 
 class KafkaProducer:
     def __init__(self, bootstrap_servers, sasl_username=None, sasl_password=None):
@@ -29,7 +30,10 @@ class KafkaProducer:
             "data_usage": "telco-data-cdrs",
             "sms": "telco-sms-cdrs",
             "voip": "telco-voip-cdrs",
-            "ims": "telco-ims-cdrs"
+            "ims": "telco-ims-cdrs",
+            "mms": "telco-mms-cdrs",
+            "roaming": "telco-roaming-cdrs",
+            "wifi_calling": "telco-wifi-calling-cdrs"
         }
         
     def delivery_report(self, err, msg):
@@ -99,6 +103,8 @@ def main():
     parser.add_argument('--max-count', type=int, help='Maximum number of CDRs to send (default: unlimited)')
     parser.add_argument('--num-users', type=int, default=1000, help='Number of users to generate if users file not found')
     parser.add_argument('--users-file', default='users.json', help='File to load users from')
+    parser.add_argument('--anomaly-rate', type=float, default=0.1, help='Probability of generating anomalies (0.0-1.0)')
+    parser.add_argument('--enable-anomalies', action='store_true', help='Enable anomaly generation')
     
     args = parser.parse_args()
     
@@ -113,6 +119,13 @@ def main():
     
     cdr_gen = CDRGenerator(user_gen)
     
+    # Wrap with anomaly generator if enabled
+    if args.enable_anomalies:
+        print(f"Anomaly generation enabled with rate: {args.anomaly_rate}")
+        generator = AnomalyGenerator(cdr_gen, anomaly_rate=args.anomaly_rate)
+    else:
+        generator = cdr_gen
+    
     # Create and run Kafka producer
     producer = KafkaProducer(
         bootstrap_servers=args.bootstrap_servers,
@@ -121,7 +134,7 @@ def main():
     )
     
     print(f"Starting to send CDRs to Kafka at {args.bootstrap_servers}")
-    producer.send_cdrs_continuously(cdr_gen, interval=args.interval, max_count=args.max_count)
+    producer.send_cdrs_continuously(generator, interval=args.interval, max_count=args.max_count)
 
 if __name__ == "__main__":
     main()

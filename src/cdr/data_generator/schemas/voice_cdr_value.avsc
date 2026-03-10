@@ -1,0 +1,28 @@
+{
+  "type": "record",
+  "name": "VoiceCDR",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {"name": "cdr_type", "type": "string"},
+    {"name": "callEventStartTime", "type": "long"},
+    {"name": "callEventEndTime", "type": "long"},
+    {"name": "callDuration", "type": "int"},
+    {"name": "callReferenceNumber", "type": "string"},
+    {"name": "callingPartyNumber", "type": "string"},
+    {"name": "calledPartyNumber", "type": "string"},
+    {"name": "imsi", "type": "string"},
+    {"name": "imei", "type": "string"},
+    {"name": "mscID", "type": "string"},
+    {"name": "lac", "type": "string"},
+    {"name": "ci", "type": "string"},
+    {"name": "causeForTermination", "type": "string"},
+    {"name": "chargeID", "type": "string"},
+    {"name": "callChargeableDuration", "type": "int"},
+    {"name": "tariffClass", "type": "string"},
+    {"name": "callType", "type": "string"},
+    {"name": "recordSequenceNumber", "type": "int"},
+    {"name": "user_id", "type": "string"},
+    {"name": "is_anomaly", "type": "boolean", "default": false},
+    {"name": "anomaly_type", "type": ["null", "string"], "default": null}
+  ]
+}

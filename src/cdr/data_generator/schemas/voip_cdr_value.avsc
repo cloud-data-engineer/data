@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "VoIPCDR",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {"name": "cdr_type", "type": "string"},
+    {"name": "sessionStartTime", "type": "long"},
+    {"name": "sessionEndTime", "type": "long"},
+    {"name": "sessionDuration", "type": "int"},
+    {"name": "callingPartyURI", "type": "string"},
+    {"name": "calledPartyURI", "type": "string"},
+    {"name": "codec", "type": "string"},
+    {"name": "callQualityIndicator", "type": "int"},
+    {"name": "bytesTransferred", "type": "long"},
+    {"name": "packetLoss", "type": "double"},
+    {"name": "jitter", "type": "double"},
+    {"name": "latency", "type": "double"},
+    {"name": "chargeID", "type": "string"},
+    {"name": "user_id", "type": "string"},
+    {"name": "is_anomaly", "type": "boolean", "default": false},
+    {"name": "anomaly_type", "type": ["null", "string"], "default": null}
+  ]
+}

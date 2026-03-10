@@ -1,0 +1,20 @@
+bundle:
+  name: telco_poc
+
+include:
+  - resources/*.yml
+
+workspace:
+  profile: dev
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      profile: dev
+
+  prod:
+    mode: production
+    workspace:
+      profile: prod
