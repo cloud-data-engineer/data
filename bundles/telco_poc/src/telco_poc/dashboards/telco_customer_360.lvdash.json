@@ -1,0 +1,78 @@
+{
+  "datasets": [
+    {
+      "name": "summary_kpis",
+      "displayName": "Summary KPIs",
+      "queryLines": [
+        "SELECT COUNT(*) as total_subscribers, SUM(voice_call_count) as total_voice_calls, ROUND(SUM(data_total_gb), 1) as total_data_gb, ROUND(SUM(total_charge_usd), 2) as total_revenue_usd FROM dev_gold.telco_poc.gold_customer_360"
+      ]
+    },
+    {
+      "name": "by_plan",
+      "displayName": "By Plan",
+      "queryLines": [
+        "SELECT plan_name, COUNT(*) as subscriber_count, ROUND(AVG(voice_total_minutes), 1) as avg_voice_minutes, ROUND(SUM(total_charge_usd), 2) as plan_revenue FROM dev_gold.telco_poc.gold_customer_360 GROUP BY plan_name"
+      ]
+    },
+    {
+      "name": "daily_trend",
+      "displayName": "Daily Trend",
+      "queryLines": [
+        "SELECT event_date, SUM(voice_calls) as voice_calls, SUM(data_sessions) as data_sessions, SUM(sms_messages) as sms_messages, ROUND(SUM(data_downlink_mb)/1024, 2) as data_downlink_gb FROM dev_gold.telco_poc.gold_daily_cdr_summary GROUP BY event_date ORDER BY event_date"
+      ]
+    },
+    {
+      "name": "top_data_users",
+      "displayName": "Top Data Users",
+      "queryLines": [
+        "SELECT msisdn, plan_name, voice_call_count, ROUND(data_total_gb, 3) as data_total_gb, sms_count_actual, ROUND(total_charge_usd, 2) as total_charge_usd FROM dev_gold.telco_poc.gold_customer_360 ORDER BY data_total_gb DESC LIMIT 20"
+      ]
+    },
+    {
+      "name": "roaming_top",
+      "displayName": "Top Roamers",
+      "queryLines": [
+        "SELECT user_id, countries_visited, ROUND(total_roaming_charge, 2) as total_roaming_charge, suspicious_events, blocked_connections FROM dev_gold.telco_poc.gold_roaming_summary ORDER BY total_roaming_charge DESC LIMIT 20"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "overview",
+      "displayName": "Customer 360 Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {"widget": {"name": "title", "multilineTextboxSpec": {"lines": ["## Telco CDR — Customer 360 Dashboard"]}}, "position": {"x": 0, "y": 0, "width": 6, "height": 1}},
+        {"widget": {"name": "subtitle", "multilineTextboxSpec": {"lines": ["Real-time streaming pipeline — Confluent Kafka → dev_gold.telco_poc | 10,000 subscribers | 9 Kafka topics"]}}, "position": {"x": 0, "y": 1, "width": 6, "height": 1}},
+        {"widget": {"name": "kpi-total-subscribers", "queries": [{"name": "main_query", "query": {"datasetName": "summary_kpis", "fields": [{"name": "total_subscribers", "expression": "`total_subscribers`"}], "disaggregated": true}}], "spec": {"version": 2, "widgetType": "counter", "encodings": {"value": {"fieldName": "total_subscribers", "displayName": "Total Subscribers"}}, "frame": {"showTitle": true, "title": "Total Subscribers"}}}, "position": {"x": 0, "y": 2, "width": 2, "height": 3}},
+        {"widget": {"name": "kpi-total-revenue", "queries": [{"name": "main_query", "query": {"datasetName": "summary_kpis", "fields": [{"name": "total_revenue_usd", "expression": "`total_revenue_usd`"}], "disaggregated": true}}], "spec": {"version": 2, "widgetType": "counter", "encodings": {"value": {"fieldName": "total_revenue_usd", "displayName": "Total Revenue (USD)"}}, "frame": {"showTitle": true, "title": "Total Revenue (USD)"}}}, "position": {"x": 2, "y": 2, "width": 2, "height": 3}},
+        {"widget": {"name": "kpi-total-data-gb", "queries": [{"name": "main_query", "query": {"datasetName": "summary_kpis", "fields": [{"name": "total_data_gb", "expression": "`total_data_gb`"}], "disaggregated": true}}], "spec": {"version": 2, "widgetType": "counter", "encodings": {"value": {"fieldName": "total_data_gb", "displayName": "Total Data (GB)"}}, "frame": {"showTitle": true, "title": "Total Data (GB)"}}}, "position": {"x": 4, "y": 2, "width": 2, "height": 3}},
+        {"widget": {"name": "section-plan", "multilineTextboxSpec": {"lines": ["### Subscribers & Revenue by Plan"]}}, "position": {"x": 0, "y": 5, "width": 6, "height": 1}},
+        {"widget": {"name": "plan-subscribers-bar", "queries": [{"name": "main_query", "query": {"datasetName": "by_plan", "fields": [{"name": "plan_name", "expression": "`plan_name`"}, {"name": "subscriber_count", "expression": "`subscriber_count`"}], "disaggregated": true}}], "spec": {"version": 3, "widgetType": "bar", "encodings": {"x": {"fieldName": "plan_name", "scale": {"type": "categorical"}, "displayName": "Plan"}, "y": {"fieldName": "subscriber_count", "scale": {"type": "quantitative"}, "displayName": "Subscribers"}}, "frame": {"showTitle": true, "title": "Subscribers by Plan"}}}, "position": {"x": 0, "y": 6, "width": 3, "height": 5}},
+        {"widget": {"name": "plan-revenue-bar", "queries": [{"name": "main_query", "query": {"datasetName": "by_plan", "fields": [{"name": "plan_name", "expression": "`plan_name`"}, {"name": "plan_revenue", "expression": "`plan_revenue`"}], "disaggregated": true}}], "spec": {"version": 3, "widgetType": "bar", "encodings": {"x": {"fieldName": "plan_name", "scale": {"type": "categorical"}, "displayName": "Plan"}, "y": {"fieldName": "plan_revenue", "scale": {"type": "quantitative"}, "displayName": "Revenue (USD)"}}, "frame": {"showTitle": true, "title": "Revenue by Plan (USD)"}}}, "position": {"x": 3, "y": 6, "width": 3, "height": 5}},
+        {"widget": {"name": "section-daily", "multilineTextboxSpec": {"lines": ["### Daily Activity Trend (Mar 1–8, 2026)"]}}, "position": {"x": 0, "y": 11, "width": 6, "height": 1}},
+        {"widget": {"name": "daily-events-line", "queries": [{"name": "main_query", "query": {"datasetName": "daily_trend", "fields": [{"name": "event_date", "expression": "`event_date`"}, {"name": "voice_calls", "expression": "`voice_calls`"}, {"name": "data_sessions", "expression": "`data_sessions`"}, {"name": "sms_messages", "expression": "`sms_messages`"}], "disaggregated": true}}], "spec": {"version": 3, "widgetType": "line", "encodings": {"x": {"fieldName": "event_date", "scale": {"type": "temporal"}, "displayName": "Date"}, "y": {"scale": {"type": "quantitative"}, "fields": [{"fieldName": "voice_calls", "displayName": "Voice Calls"}, {"fieldName": "data_sessions", "displayName": "Data Sessions"}, {"fieldName": "sms_messages", "displayName": "SMS Messages"}]}}, "frame": {"showTitle": true, "title": "Daily CDR Events"}}}, "position": {"x": 0, "y": 12, "width": 3, "height": 6}},
+        {"widget": {"name": "daily-data-gb-bar", "queries": [{"name": "main_query", "query": {"datasetName": "daily_trend", "fields": [{"name": "event_date", "expression": "`event_date`"}, {"name": "data_downlink_gb", "expression": "`data_downlink_gb`"}], "disaggregated": true}}], "spec": {"version": 3, "widgetType": "bar", "encodings": {"x": {"fieldName": "event_date", "scale": {"type": "temporal"}, "displayName": "Date"}, "y": {"fieldName": "data_downlink_gb", "scale": {"type": "quantitative"}, "displayName": "Data Downlink (GB)"}}, "frame": {"showTitle": true, "title": "Daily Data Downlink (GB)"}}}, "position": {"x": 3, "y": 12, "width": 3, "height": 6}}
+      ]
+    },
+    {
+      "name": "top-users",
+      "displayName": "Top Users",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {"widget": {"name": "top-users-title", "multilineTextboxSpec": {"lines": ["## Top Users by Data Volume"]}}, "position": {"x": 0, "y": 0, "width": 6, "height": 1}},
+        {"widget": {"name": "top-data-users-table", "queries": [{"name": "main_query", "query": {"datasetName": "top_data_users", "fields": [{"name": "msisdn", "expression": "`msisdn`"}, {"name": "plan_name", "expression": "`plan_name`"}, {"name": "data_total_gb", "expression": "`data_total_gb`"}, {"name": "voice_call_count", "expression": "`voice_call_count`"}, {"name": "sms_count_actual", "expression": "`sms_count_actual`"}, {"name": "total_charge_usd", "expression": "`total_charge_usd`"}], "disaggregated": true}}], "spec": {"version": 2, "widgetType": "table", "encodings": {"columns": [{"fieldName": "msisdn", "displayName": "MSISDN"}, {"fieldName": "plan_name", "displayName": "Plan"}, {"fieldName": "data_total_gb", "displayName": "Data (GB)"}, {"fieldName": "voice_call_count", "displayName": "Voice Calls"}, {"fieldName": "sms_count_actual", "displayName": "SMS Sent"}, {"fieldName": "total_charge_usd", "displayName": "Total Charge (USD)"}]}, "frame": {"showTitle": true, "title": "Top 20 Subscribers by Data Volume"}}}, "position": {"x": 0, "y": 1, "width": 6, "height": 8}},
+        {"widget": {"name": "roaming-section-title", "multilineTextboxSpec": {"lines": ["## Top Roamers by Charge"]}}, "position": {"x": 0, "y": 9, "width": 6, "height": 1}},
+        {"widget": {"name": "top-roamers-table", "queries": [{"name": "main_query", "query": {"datasetName": "roaming_top", "fields": [{"name": "user_id", "expression": "`user_id`"}, {"name": "countries_visited", "expression": "`countries_visited`"}, {"name": "total_roaming_charge", "expression": "`total_roaming_charge`"}, {"name": "suspicious_events", "expression": "`suspicious_events`"}, {"name": "blocked_connections", "expression": "`blocked_connections`"}], "disaggregated": true}}], "spec": {"version": 2, "widgetType": "table", "encodings": {"columns": [{"fieldName": "user_id", "displayName": "User ID"}, {"fieldName": "countries_visited", "displayName": "Countries Visited"}, {"fieldName": "total_roaming_charge", "displayName": "Roaming Charge (USD)"}, {"fieldName": "suspicious_events", "displayName": "Suspicious Events"}, {"fieldName": "blocked_connections", "displayName": "Blocked Connections"}]}, "frame": {"showTitle": true, "title": "Top 20 Roamers by Charge"}}}, "position": {"x": 0, "y": 10, "width": 6, "height": 8}}
+      ]
+    },
+    {
+      "name": "global-filters",
+      "displayName": "Filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layout": [
+        {"widget": {"name": "filter-plan", "queries": [{"name": "ds_by_plan_filter", "query": {"datasetName": "by_plan", "fields": [{"name": "plan_name", "expression": "`plan_name`"}], "disaggregated": false}}], "spec": {"version": 2, "widgetType": "filter-multi-select", "encodings": {"fields": [{"fieldName": "plan_name", "displayName": "Plan", "queryName": "ds_by_plan_filter"}]}, "frame": {"showTitle": true, "title": "Plan"}}}, "position": {"x": 0, "y": 0, "width": 2, "height": 2}}
+      ]
+    }
+  ]
+}
