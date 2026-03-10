@@ -7,8 +7,8 @@ from user_generator import UserGenerator
 class CDRGenerator:
     def __init__(self, user_generator):
         self.user_generator = user_generator
-        self.cdr_types = ["voice", "data_usage", "sms", "voip", "ims"]
-        self.cdr_type_weights = [0.4, 0.3, 0.15, 0.1, 0.05]  # Probability weights for each type
+        self.cdr_types = ["voice", "data_usage", "sms", "voip", "ims", "mms", "roaming", "wifi_calling"]
+        self.cdr_type_weights = [0.25, 0.25, 0.12, 0.08, 0.05, 0.10, 0.08, 0.07]  # Probability weights for each type
         
     def generate_timestamp(self, days_back=7):
         """Generate a random timestamp within the last N days"""
@@ -43,6 +43,8 @@ class CDRGenerator:
             "chargeID": f"CHG{random.randint(1, 10000)}",
             "callChargeableDuration": duration,
             "tariffClass": random.choice(["standard_voice", "premium_voice", "international", "roaming"]),
+            "callType": random.choice(["MOC", "MTC", "forwarded"]),  # Mobile Originated/Terminated
+            "recordSequenceNumber": random.randint(1, 999999),
             "user_id": user["user_id"]
         }
     
@@ -73,6 +75,8 @@ class CDRGenerator:
             "ratType": random.choice(["UTRAN", "GERAN", "WLAN", "GAN", "HSPA", "EUTRAN", "NR"]),
             "chargingID": f"CHG{random.randint(1, 10000)}",
             "qci": random.randint(1, 9),
+            "recordSequenceNumber": random.randint(1, 999999),
+            "sgsn_address": f"10.20.{random.randint(1, 254)}.{random.randint(1, 254)}",
             "user_id": user["user_id"]
         }
     
@@ -93,6 +97,8 @@ class CDRGenerator:
             "smscAddress": f"smsc{random.randint(1, 10)}.example.com",
             "messageSize": random.randint(1, 160),
             "deliveryStatus": random.choice(["delivered", "failed", "pending"]),
+            "messageType": random.choice(["SMS-MO", "SMS-MT"]),  # Mobile Originated/Terminated
+            "recordSequenceNumber": random.randint(1, 999999),
             "chargeAmount": round(random.uniform(0.01, 0.1), 2),
             "user_id": user["user_id"]
         }
@@ -147,6 +153,93 @@ class CDRGenerator:
             "user_id": user["user_id"]
         }
     
+    def generate_mms_cdr(self, user):
+        """Generate an MMS CDR"""
+        timestamp = self.generate_timestamp()
+        
+        # Get another random user for the recipient
+        recipient_user = self.user_generator.get_random_user()
+        
+        return {
+            "cdr_type": "mms",
+            "eventTimestamp": timestamp,
+            "mmsReferenceNumber": f"MMS{random.randint(1, 100000)}",
+            "originatingNumber": user["msisdn"],
+            "destinationNumber": recipient_user["msisdn"],
+            "imsi": user["imsi"],
+            "mmscAddress": f"mmsc{random.randint(1, 10)}.example.com",
+            "messageSize": random.randint(10000, 5000000),  # 10KB to 5MB
+            "contentType": random.choice(["image/jpeg", "image/png", "video/mp4", "audio/mpeg"]),
+            "deliveryStatus": random.choice(["delivered", "failed", "pending"]),
+            "chargeAmount": round(random.uniform(0.10, 0.50), 2),
+            "user_id": user["user_id"]
+        }
+    
+    def generate_roaming_cdr(self, user):
+        """Generate a roaming CDR"""
+        start_time = self.generate_timestamp()
+        duration = random.randint(30, 1800)  # 30 seconds to 30 minutes
+        end_time = start_time + duration
+        
+        called_user = self.user_generator.get_random_user()
+        
+        # Roaming countries and networks
+        roaming_networks = [
+            {"country": "UK", "network": "Vodafone UK", "mcc": "234", "mnc": "15"},
+            {"country": "Germany", "network": "Deutsche Telekom", "mcc": "262", "mnc": "01"},
+            {"country": "France", "network": "Orange France", "mcc": "208", "mnc": "01"},
+            {"country": "Spain", "network": "Telefonica", "mcc": "214", "mnc": "07"},
+            {"country": "Italy", "network": "TIM", "mcc": "222", "mnc": "01"}
+        ]
+        
+        roaming_network = random.choice(roaming_networks)
+        
+        return {
+            "cdr_type": "roaming",
+            "callEventStartTime": start_time,
+            "callEventEndTime": end_time,
+            "callDuration": duration,
+            "callingPartyNumber": user["msisdn"],
+            "calledPartyNumber": called_user["msisdn"],
+            "imsi": user["imsi"],
+            "imei": user["imei"],
+            "roamingCountry": roaming_network["country"],
+            "visitedNetwork": roaming_network["network"],
+            "mcc": roaming_network["mcc"],
+            "mnc": roaming_network["mnc"],
+            "roamingType": random.choice(["international", "national"]),
+            "serviceType": random.choice(["voice", "data", "sms"]),
+            "chargeAmount": round(random.uniform(0.50, 5.00), 2),
+            "roamingStatus": "authorized",
+            "user_id": user["user_id"]
+        }
+    
+    def generate_wifi_calling_cdr(self, user):
+        """Generate a WiFi calling CDR"""
+        start_time = self.generate_timestamp()
+        duration = random.randint(30, 3600)  # 30 seconds to 1 hour
+        end_time = start_time + duration
+        
+        called_user = self.user_generator.get_random_user()
+        
+        return {
+            "cdr_type": "wifi_calling",
+            "sessionStartTime": start_time,
+            "sessionEndTime": end_time,
+            "sessionDuration": duration,
+            "callingPartyNumber": user["msisdn"],
+            "calledPartyNumber": called_user["msisdn"],
+            "imsi": user["imsi"],
+            "wifiSSID": f"WiFi_{random.randint(1000, 9999)}",
+            "wifiAccessPoint": f"{random.randint(10, 192)}.{random.randint(0, 255)}.{random.randint(0, 255)}.1",
+            "signalStrength": random.randint(-80, -30),  # dBm
+            "codec": random.choice(["G.711", "G.722", "OPUS", "AMR-WB"]),
+            "callQuality": random.randint(1, 5),
+            "handoverToCell": random.choice([True, False]),
+            "chargeID": f"WIFI{random.randint(1, 10000)}",
+            "user_id": user["user_id"]
+        }
+    
     def generate_random_cdr(self):
         """Generate a random CDR based on weighted probabilities"""
         # Select a random CDR type based on weights
@@ -166,6 +259,12 @@ class CDRGenerator:
             return self.generate_voip_cdr(user)
         elif cdr_type == "ims":
             return self.generate_ims_cdr(user)
+        elif cdr_type == "mms":
+            return self.generate_mms_cdr(user)
+        elif cdr_type == "roaming":
+            return self.generate_roaming_cdr(user)
+        elif cdr_type == "wifi_calling":
+            return self.generate_wifi_calling_cdr(user)
     
     def generate_cdrs(self, count=100):
         """Generate multiple CDRs"""

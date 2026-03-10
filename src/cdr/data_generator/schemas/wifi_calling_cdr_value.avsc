@@ -1,0 +1,24 @@
+{
+  "type": "record",
+  "name": "WiFiCallingCDR",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {"name": "cdr_type", "type": "string"},
+    {"name": "sessionStartTime", "type": "long"},
+    {"name": "sessionEndTime", "type": "long"},
+    {"name": "sessionDuration", "type": "int"},
+    {"name": "callingPartyNumber", "type": "string"},
+    {"name": "calledPartyNumber", "type": "string"},
+    {"name": "imsi", "type": "string"},
+    {"name": "wifiSSID", "type": "string"},
+    {"name": "wifiAccessPoint", "type": "string"},
+    {"name": "signalStrength", "type": "int"},
+    {"name": "codec", "type": "string"},
+    {"name": "callQuality", "type": "int"},
+    {"name": "handoverToCell", "type": "boolean"},
+    {"name": "chargeID", "type": "string"},
+    {"name": "user_id", "type": "string"},
+    {"name": "is_anomaly", "type": "boolean", "default": false},
+    {"name": "anomaly_type", "type": ["null", "string"], "default": null}
+  ]
+}

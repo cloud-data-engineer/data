@@ -1,0 +1,22 @@
+{
+  "type": "record",
+  "name": "IMSCDR",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {"name": "cdr_type", "type": "string"},
+    {"name": "sessionStartTime", "type": "long"},
+    {"name": "sessionEndTime", "type": "long"},
+    {"name": "sessionDuration", "type": "int"},
+    {"name": "originatingURI", "type": "string"},
+    {"name": "destinationURI", "type": "string"},
+    {"name": "serviceType", "type": "string"},
+    {"name": "mediaTypes", "type": "string"},
+    {"name": "networkType", "type": "string"},
+    {"name": "qosClass", "type": "string"},
+    {"name": "chargeID", "type": "string"},
+    {"name": "user_id", "type": "string"},
+    {"name": "is_anomaly", "type": "boolean", "default": false},
+    {"name": "anomaly_type", "type": ["null", "string"], "default": null},
+    {"name": "terminationReason", "type": ["null", "string"], "default": null}
+  ]
+}

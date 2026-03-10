@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "DataCDR",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {"name": "cdr_type", "type": "string"},
+    {"name": "recordType", "type": "int"},
+    {"name": "recordOpeningTime", "type": "long"},
+    {"name": "recordClosingTime", "type": "long"},
+    {"name": "duration", "type": "int"},
+    {"name": "imsi", "type": "string"},
+    {"name": "imei", "type": "string"},
+    {"name": "msisdn", "type": "string"},
+    {"name": "dataVolumeUplink", "type": "long"},
+    {"name": "dataVolumeDownlink", "type": "long"},
+    {"name": "servingNodeAddress", "type": "string"},
+    {"name": "apn", "type": "string"},
+    {"name": "pdnType", "type": "string"},
+    {"name": "ratType", "type": "string"},
+    {"name": "chargingID", "type": "string"},
+    {"name": "qci", "type": "int"},
+    {"name": "recordSequenceNumber", "type": "int"},
+    {"name": "sgsn_address", "type": "string"},
+    {"name": "user_id", "type": "string"},
+    {"name": "is_anomaly", "type": "boolean", "default": false},
+    {"name": "anomaly_type", "type": ["null", "string"], "default": null},
+    {"name": "causeForRecordClosing", "type": ["null", "string"], "default": null}
+  ]
+}

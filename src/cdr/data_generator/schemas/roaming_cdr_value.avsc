@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "RoamingCDR",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {"name": "cdr_type", "type": "string"},
+    {"name": "callEventStartTime", "type": "long"},
+    {"name": "callEventEndTime", "type": "long"},
+    {"name": "callDuration", "type": "int"},
+    {"name": "callingPartyNumber", "type": "string"},
+    {"name": "calledPartyNumber", "type": "string"},
+    {"name": "imsi", "type": "string"},
+    {"name": "imei", "type": "string"},
+    {"name": "roamingCountry", "type": "string"},
+    {"name": "visitedNetwork", "type": "string"},
+    {"name": "mcc", "type": "string"},
+    {"name": "mnc", "type": "string"},
+    {"name": "roamingType", "type": "string"},
+    {"name": "serviceType", "type": "string"},
+    {"name": "chargeAmount", "type": "double"},
+    {"name": "roamingStatus", "type": "string"},
+    {"name": "user_id", "type": "string"},
+    {"name": "is_anomaly", "type": "boolean", "default": false},
+    {"name": "anomaly_type", "type": ["null", "string"], "default": null},
+    {"name": "suspiciousActivity", "type": ["null", "boolean"], "default": null},
+    {"name": "fraudScore", "type": ["null", "double"], "default": null},
+    {"name": "connectionAllowed", "type": ["null", "boolean"], "default": null}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "UserKey",
+  "namespace": "com.telco.user",
+  "fields": [
+    {
+      "name": "user_id",
+      "type": "string"
+    }
+  ]
+}

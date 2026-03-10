@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "CDRKey",
+  "namespace": "com.telco.cdr",
+  "fields": [
+    {
+      "name": "user_id",
+      "type": "string"
+    }
+  ]
+}
