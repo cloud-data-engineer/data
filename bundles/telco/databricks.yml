@@ -1,0 +1,37 @@
+# Databricks Asset Bundle — Telco CDR Pipeline
+# See https://docs.databricks.com/dev-tools/bundles/index.html
+bundle:
+  name: telco
+
+include:
+  - resources/*.yml
+
+variables:
+  env_scope:
+    description: "Environment prefix — dev or prod. Used to resolve catalog names: ${var.env_scope}_bronze, etc."
+    default: dev
+  domain:
+    description: "Data product / schema name — telco"
+    default: telco
+  development:
+    description: "Enable development mode for the pipeline (true in dev, false in prod)"
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
+      profile: dev
+    variables:
+      env_scope: dev
+      development: "true"
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-6019e7fe-ec9b.cloud.databricks.com
+      root_path: /Workspace/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      env_scope: prod
+      development: "false"

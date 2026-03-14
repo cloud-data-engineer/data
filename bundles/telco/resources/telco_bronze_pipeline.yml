@@ -1,0 +1,35 @@
+resources:
+  pipelines:
+    telco_bronze:
+      name: telco_bronze
+      catalog: ${var.env_scope}_bronze
+      schema: ${var.domain}
+      serverless: true
+
+      libraries:
+        - glob:
+            include: ../src/telco/transformations/**
+
+      configuration:
+        env_scope: ${var.env_scope}
+        domain: ${var.domain}
+
+      development: ${var.development}
+
+      event_log:
+        catalog: ${var.env_scope}_bronze
+        schema: ${var.domain}
+        name: telco_bronze_event_log
+
+      notifications:
+        - email_recipients:
+            - pat@clouddata.engineer
+          alerts:
+            - on-update-failure
+            - on-update-fatal-failure
+            - on-flow-failure
+
+      tags:
+        project: telco
+        domain: telco
+        layer: bronze

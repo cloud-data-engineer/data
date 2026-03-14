@@ -14,3 +14,4 @@ __pycache__/
 .gemini
 .mcp.json
 .ai-dev-kit
+.databricks-resources.json
