@@ -15,3 +15,5 @@ __pycache__/
 .mcp.json
 .ai-dev-kit
 .databricks-resources.json
+.agents
+.github/skills
