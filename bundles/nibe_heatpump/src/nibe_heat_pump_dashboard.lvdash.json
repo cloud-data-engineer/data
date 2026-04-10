@@ -4,49 +4,70 @@
       "displayName": "KPI Overall Summary",
       "name": "kpi_overall",
       "queryLines": [
-        "SELECT   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS neg_superheat_pct,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(MAX(bt14_discharge_c), 1) AS max_discharge_c,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS total_heater_kwh,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct FROM dev_raw.nibe.silver_nibe_logs "
+        "SELECT   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS neg_superheat_pct,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(MAX(bt14_discharge_c), 1) AS max_discharge_c,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS total_heater_kwh,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct FROM dev_silver.nibe.silver_nibe_logs "
       ]
     },
     {
       "displayName": "Daily Extended Stats",
       "name": "daily_extended",
       "queryLines": [
-        "SELECT   log_date_parsed AS log_date,   MIN(bt1_outdoor_temp_c) AS min_outdoor_c,   MAX(bt1_outdoor_temp_c) AS max_outdoor_c,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(MAX(CASE WHEN compr_freq_act_hz > 0 THEN bt25_supply_c - bt71_return_c END), 1) AS max_delta_t_k,   ROUND(AVG(CASE WHEN priority_mode = 30 THEN calc_supply_c END), 1) AS avg_calc_supply_c,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   MIN(degree_minutes) AS min_dm,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN compr_freq_act_hz END), 0) AS avg_freq_hz,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS heater_duty_pct,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS heater_energy_kwh,   MAX(tot_int_add_kw) AS heater_max_kw,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS negative_superheat_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bp4_hp_bar END), 1) AS avg_hp_bar,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt14_discharge_c END), 1) AS avg_discharge_c,   SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) AS alarm_samples,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN priority_mode = 30 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS co_pct,   COUNT(*) AS total_samples FROM dev_raw.nibe.silver_nibe_logs GROUP BY log_date_parsed ORDER BY log_date_parsed "
+        "SELECT   log_date_parsed AS log_date,   MIN(bt1_outdoor_temp_c) AS min_outdoor_c,   MAX(bt1_outdoor_temp_c) AS max_outdoor_c,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 AND priority_mode = 30 THEN bt25_supply_c - bt71_return_c END), 1) AS avg_delta_t_k,   ROUND(MAX(CASE WHEN compr_freq_act_hz > 0 THEN bt25_supply_c - bt71_return_c END), 1) AS max_delta_t_k,   ROUND(AVG(CASE WHEN priority_mode = 30 THEN calc_supply_c END), 1) AS avg_calc_supply_c,   ROUND(AVG(degree_minutes), 0) AS avg_dm,   MIN(degree_minutes) AS min_dm,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS compr_duty_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN compr_freq_act_hz END), 0) AS avg_freq_hz,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS heater_duty_pct,   ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1) AS heater_energy_kwh,   MAX(tot_int_add_kw) AS heater_max_kw,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt17_suction_c - bt16_evap_c END), 1) AS avg_superheat_k,   ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 AND (bt17_suction_c - bt16_evap_c) < 0 THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END), 0), 1) AS negative_superheat_pct,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bp4_hp_bar END), 1) AS avg_hp_bar,   ROUND(MAX(bp4_hp_bar), 1) AS max_hp_bar,   ROUND(AVG(CASE WHEN compr_freq_act_hz > 0 THEN bt14_discharge_c END), 1) AS avg_discharge_c,   SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) AS alarm_samples,   ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS alarm_pct,   ROUND(SUM(CASE WHEN priority_mode = 30 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS co_pct,   COUNT(*) AS total_samples FROM dev_silver.nibe.silver_nibe_logs GROUP BY log_date_parsed ORDER BY log_date_parsed "
       ]
     },
     {
       "displayName": "Refrigerant 5-min Timeseries",
       "name": "superheat_5min",
       "queryLines": [
-        "SELECT   TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) AS ts_5min,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar,   ROUND(AVG(bt14_discharge_c), 1) AS avg_discharge_c FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 GROUP BY TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) ORDER BY ts_5min "
+        "SELECT   TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) AS ts_5min,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar,   ROUND(AVG(bt14_discharge_c), 1) AS avg_discharge_c FROM dev_silver.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 GROUP BY TIMESTAMP_SECONDS(FLOOR(UNIX_TIMESTAMP(logged_at) / 300) * 300) ORDER BY ts_5min "
       ]
     },
     {
       "displayName": "Heating Curve Analysis",
       "name": "heating_curve",
       "queryLines": [
-        "SELECT   ROUND(bt1_outdoor_temp_c, 0) AS bt1_rounded,   ROUND(AVG(calc_supply_c), 1) AS avg_calc_supply,   ROUND(AVG(bt25_supply_c), 1) AS avg_actual_supply,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS heater_pct,   COUNT(*) AS samples FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY ROUND(bt1_outdoor_temp_c, 0) HAVING COUNT(*) > 50 ORDER BY bt1_rounded "
+        "SELECT   ROUND(bt1_outdoor_temp_c, 0) AS bt1_rounded,   ROUND(AVG(calc_supply_c), 1) AS avg_calc_supply,   ROUND(AVG(bt25_supply_c), 1) AS avg_actual_supply,   ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 0) AS heater_pct,   COUNT(*) AS samples FROM dev_silver.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY ROUND(bt1_outdoor_temp_c, 0) HAVING COUNT(*) > 50 ORDER BY bt1_rounded "
       ]
     },
     {
       "displayName": "Flow Quality by Frequency Band",
       "name": "flow_quality",
       "queryLines": [
-        "SELECT   CASE     WHEN compr_freq_act_hz BETWEEN 20 AND 50 THEN '20-50 Hz'     WHEN compr_freq_act_hz BETWEEN 50 AND 80 THEN '50-80 Hz'     WHEN compr_freq_act_hz BETWEEN 80 AND 110 THEN '80-110 Hz'     WHEN compr_freq_act_hz > 110 THEN '110+ Hz'   END AS freq_band,   ROUND(AVG(bt25_supply_c - bt71_return_c), 1) AS avg_delta_t_k,   ROUND(MAX(bt25_supply_c - bt71_return_c), 1) AS max_delta_t_k,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   COUNT(*) AS samples FROM dev_raw.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY 1 ORDER BY 1 "
+        "SELECT   CASE     WHEN compr_freq_act_hz BETWEEN 20 AND 50 THEN '20-50 Hz'     WHEN compr_freq_act_hz BETWEEN 50 AND 80 THEN '50-80 Hz'     WHEN compr_freq_act_hz BETWEEN 80 AND 110 THEN '80-110 Hz'     WHEN compr_freq_act_hz > 110 THEN '110+ Hz'   END AS freq_band,   ROUND(AVG(bt25_supply_c - bt71_return_c), 1) AS avg_delta_t_k,   ROUND(MAX(bt25_supply_c - bt71_return_c), 1) AS max_delta_t_k,   ROUND(AVG(bt17_suction_c - bt16_evap_c), 1) AS avg_superheat_k,   COUNT(*) AS samples FROM dev_silver.nibe.silver_nibe_logs WHERE compr_freq_act_hz > 0 AND priority_mode = 30 GROUP BY 1 ORDER BY 1 "
       ]
     },
     {
       "displayName": "Alarm Detail",
       "name": "alarm_detail",
       "queryLines": [
-        "SELECT   alarm_number,   CASE alarm_number     WHEN 183 THEN '183: HP Soft Alarm'     WHEN 271 THEN '271: Low Temp Stop'     WHEN 163 THEN '163: HP Trip'     WHEN 162 THEN '162: HP Trip Max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS samples,   ROUND(COUNT(*) * 5.0 / 3600, 1) AS duration_hours,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(compr_freq_act_hz), 0) AS avg_freq_hz,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar FROM dev_raw.nibe.silver_nibe_logs WHERE alarm_active GROUP BY alarm_number ORDER BY samples DESC "
+        "SELECT   alarm_number,   CASE alarm_number     WHEN 183 THEN '183: HP Soft Alarm'     WHEN 271 THEN '271: Low Temp Stop'     WHEN 163 THEN '163: HP Trip'     WHEN 162 THEN '162: HP Trip Max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS samples,   ROUND(COUNT(*) * 5.0 / 3600, 1) AS duration_hours,   ROUND(AVG(bt1_outdoor_temp_c), 1) AS avg_outdoor_c,   ROUND(AVG(compr_freq_act_hz), 0) AS avg_freq_hz,   ROUND(AVG(bp4_hp_bar), 1) AS avg_hp_bar FROM dev_silver.nibe.silver_nibe_logs WHERE alarm_active GROUP BY alarm_number ORDER BY samples DESC "
       ]
     },
     {
       "displayName": "Hourly Alarm Distribution",
       "name": "hourly_alarm",
       "queryLines": [
-        "SELECT   HOUR(logged_at) AS hour_of_day,   CASE alarm_number     WHEN 183 THEN '183: HP Soft'     WHEN 271 THEN '271: Low Temp'     WHEN 163 THEN '163: HP Trip'     WHEN 162 THEN '162: HP Trip Max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS alarm_samples FROM dev_raw.nibe.silver_nibe_logs WHERE alarm_active GROUP BY HOUR(logged_at), alarm_number ORDER BY hour_of_day "
+        "SELECT   HOUR(logged_at) AS hour_of_day,   CASE alarm_number     WHEN 183 THEN '183: HP Soft'     WHEN 271 THEN '271: Low Temp'     WHEN 163 THEN '163: HP Trip'     WHEN 162 THEN '162: HP Trip Max'     ELSE CAST(alarm_number AS STRING)   END AS alarm_label,   COUNT(*) AS alarm_samples FROM dev_silver.nibe.silver_nibe_logs WHERE alarm_active GROUP BY HOUR(logged_at), alarm_number ORDER BY hour_of_day "
+      ]
+    },
+    {
+      "displayName": "Subcooling Daily",
+      "name": "subcooling_daily",
+      "queryLines": [
+        "SELECT log_date, subcooling_avg_k, subcooling_min_k, outdoor_avg_c FROM dev_gold.nibe.gold_nibe_daily_summary ORDER BY log_date"
+      ]
+    },
+    {
+      "displayName": "Defrost Daily Summary",
+      "name": "defrost_daily",
+      "queryLines": [
+        "SELECT log_date, COUNT(*) AS defrost_count, ROUND(AVG(duration_min), 1) AS avg_duration_min, ROUND(MAX(duration_min), 1) AS max_duration_min, ROUND(AVG(outdoor_avg_c), 1) AS outdoor_avg_c, ROUND(AVG(bt16_end_c), 1) AS avg_bt16_end_c FROM dev_gold.nibe.gold_nibe_defrost_cycles GROUP BY log_date ORDER BY log_date"
+      ]
+    },
+    {
+      "displayName": "DHW Daily Summary",
+      "name": "dhw_daily",
+      "queryLines": [
+        "SELECT log_date, COUNT(*) AS dhw_cycle_count, ROUND(AVG(duration_min), 1) AS avg_duration_min, ROUND(MAX(duration_min), 1) AS max_duration_min, ROUND(AVG(bt6_end_c), 1) AS avg_bt6_end_c, ROUND(MIN(bt6_end_c), 1) AS min_bt6_end_c, ROUND(AVG(heater_duty_pct), 0) AS avg_heater_pct FROM dev_gold.nibe.gold_nibe_dhw_cycles GROUP BY log_date ORDER BY log_date"
       ]
     }
   ],
@@ -1835,6 +1856,335 @@
         }
       ],
       "name": "guide",
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "displayName": "Defrost & DHW",
+      "layout": [
+        {
+          "position": {
+            "height": 1,
+            "width": 6,
+            "x": 0,
+            "y": 0
+          },
+          "widget": {
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Defrost & DHW Analysis\n\nDefrost removes ice from the outdoor coil — the #1 air-source performance issue in cold climates. DHW cycles heat the domestic hot water tank.\n\n**Defrost thresholds:** 5–15 cycles/day normal · avg duration 3–8 min · >20 cycles/day or >10 min avg = investigate\n**DHW thresholds:** 1–3 cycles/day · 20–45 min each · end BT6 ≥ 48°C · heater during DHW above −5°C outdoor = unusual\n**Subcooling:** Saturation temp − BT15 liquid line. Target 3–8 K. <2 K = undercharge. >10 K = overcharge or condenser fouling."
+              ]
+            },
+            "name": "defrost-dhw-header"
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 0,
+            "y": 1
+          },
+          "widget": {
+            "name": "defrost-count-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "defrost_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`defrost_count`",
+                      "name": "defrost_count"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "Defrost Cycles",
+                  "fieldName": "defrost_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Defrost Cycles per Day (normal 5–15, warn >20)"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 3,
+            "y": 1
+          },
+          "widget": {
+            "name": "defrost-duration-line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "defrost_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`avg_duration_min`",
+                      "name": "avg_duration_min"
+                    },
+                    {
+                      "expression": "`max_duration_min`",
+                      "name": "max_duration_min"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Avg Duration (min)",
+                      "fieldName": "avg_duration_min"
+                    },
+                    {
+                      "displayName": "Max Duration (min)",
+                      "fieldName": "max_duration_min"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Defrost Duration (min) — Avg & Max (warn >8 avg)"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 0,
+            "y": 4
+          },
+          "widget": {
+            "name": "dhw-count-bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "dhw_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`dhw_cycle_count`",
+                      "name": "dhw_cycle_count"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "displayName": "DHW Cycles",
+                  "fieldName": "dhw_cycle_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "DHW Cycles per Day (normal 1–3)"
+              },
+              "version": 3,
+              "widgetType": "bar"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 3,
+            "x": 3,
+            "y": 4
+          },
+          "widget": {
+            "name": "dhw-bt6-end-line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "dhw_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`avg_bt6_end_c`",
+                      "name": "avg_bt6_end_c"
+                    },
+                    {
+                      "expression": "`min_bt6_end_c`",
+                      "name": "min_bt6_end_c"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Avg BT6 End (°C)",
+                      "fieldName": "avg_bt6_end_c"
+                    },
+                    {
+                      "displayName": "Min BT6 End (°C)",
+                      "fieldName": "min_bt6_end_c"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "DHW Tank End Temperature BT6 (°C) — Target ≥ 48°C"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        },
+        {
+          "position": {
+            "height": 3,
+            "width": 6,
+            "x": 0,
+            "y": 7
+          },
+          "widget": {
+            "name": "subcooling-line",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "subcooling_daily",
+                  "disaggregated": true,
+                  "fields": [
+                    {
+                      "expression": "`log_date`",
+                      "name": "log_date"
+                    },
+                    {
+                      "expression": "`subcooling_avg_k`",
+                      "name": "subcooling_avg_k"
+                    },
+                    {
+                      "expression": "`subcooling_min_k`",
+                      "name": "subcooling_min_k"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "encodings": {
+                "x": {
+                  "displayName": "Date",
+                  "fieldName": "log_date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "displayName": "Avg Subcooling (K)",
+                      "fieldName": "subcooling_avg_k"
+                    },
+                    {
+                      "displayName": "Min Subcooling (K)",
+                      "fieldName": "subcooling_min_k"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Condenser Subcooling (K) — Target 3–8 K · <2 K = undercharge · >10 K = overcharge/fouling"
+              },
+              "version": 3,
+              "widgetType": "line"
+            }
+          }
+        }
+      ],
+      "name": "defrost_dhw",
       "pageType": "PAGE_TYPE_CANVAS"
     }
   ]

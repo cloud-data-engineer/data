@@ -1,7 +1,7 @@
 """
 NIBE Heat Pump Log — Gold Layer (Diagnostic Agent Tables)
 =========================================================
-Six materialized views pre-aggregated for LLM-based diagnostics.
+Eight materialized views pre-aggregated for LLM-based diagnostics.
 
 Raw silver is ~17,000 rows/day × 45+ columns — far too large for LLM context.
 These tables reduce each agent tool call to 50–200 rows covering the key
@@ -14,6 +14,8 @@ Table purposes:
   gold_nibe_heating_curve    Performance per outdoor °C — curve calibration
   gold_nibe_alarm_episodes   Alarm episodes with operational context
   gold_nibe_data_quality     Daily data coverage & gap metrics — reliability check
+  gold_nibe_defrost_cycles   Defrost episode detection — air-source #1 issue
+  gold_nibe_dhw_cycles       DHW heating episode detection — tank health
 
 Key silver columns used here:
   bt71_return_c      : return manifold sensor — (bt25_supply_c − bt71_return_c) = floor ΔT
@@ -24,6 +26,20 @@ Key silver columns used here:
   bt1_bt28_divergence_k : pre-computed |BT1 − BT28|; wind/snow indicator
   tot_int_add_kw     : instantaneous stage power 0/3/6/9 kW (raw ÷100)
   priority_mode      : 10=standby/defrost, 20=DHW, 30=space heating
+  saturation_temp_c  : condensing saturation temp (from HP tables)
+  bt15_liquid_c      : liquid-line temp before expansion valve
+  bt7_dhw_charge_c   : DHW tank mid/charging sensor
+  gp10_circ_pump_on  : indoor circulation pump (boolean)
+  gp12_fan_pct       : outdoor unit fan speed (%)
+  bt1_average_c      : rolling average of BT1 outdoor temp
+
+Implementation notes:
+  - All time/energy accumulations use gap-aware intervals: each row's contribution
+    is LEAST(gap_seconds, 10) instead of a fixed 5 s, so data gaps do not inflate
+    running hours or energy totals. The cap of 10 s allows for minor jitter while
+    treating genuine outages (>10 s) as a single 10 s sample at most.
+  - ORDER BY is omitted from all materialized views — Delta tables ignore row
+    ordering. Use cluster_by for physical layout instead.
 """
 
 from pyspark import pipelines as dp
@@ -32,6 +48,27 @@ from pyspark import pipelines as dp
 _env = spark.conf.get("env_scope")   # "dev" or "prod"
 _SL  = f"{_env}_silver.nibe"         # silver layer catalog.schema
 _GL  = f"{_env}_gold.nibe"           # gold layer catalog.schema
+
+# ── Reusable SQL fragment: gap-aware interval ────────────────────────────────
+# Produces `gap_interval` column — seconds this row represents, capped at 10 s.
+# First row of each day has NULL lag → COALESCE to 5 (nominal interval).
+_GAP_CTE = """
+    base AS (
+        SELECT
+            *,
+            COALESCE(
+                LEAST(
+                    TIMESTAMPDIFF(SECOND,
+                        LAG(logged_at) OVER (PARTITION BY log_date_parsed ORDER BY logged_at),
+                        logged_at
+                    ),
+                    10
+                ),
+                5
+            ) AS gap_interval
+        FROM {silver}.silver_nibe_logs
+    )
+"""
 
 
 # ── 1. Daily Summary ──────────────────────────────────────────────────────────
@@ -43,15 +80,20 @@ _GL  = f"{_env}_gold.nibe"           # gold layer catalog.schema
         "Covers: outdoor temps, supply/return temps, delta_T (flow-quality indicator), "
         "degree-minutes (demand controller), compressor duty/freq/starts/hours, "
         "heater energy kWh and duty, suction superheat (BT17 − BT16), "
+        "condenser subcooling (saturation − BT15, charge indicator), "
         "high-side pressure, discharge temp, alarm summary, defrost count, "
-        "BT1/BT28 divergence (wind/snow indicator), and mode split."
+        "BT1/BT28 divergence (wind/snow indicator), sensor drift, "
+        "standby parasitic (pump/fan when idle), short-cycling count, and mode split. "
+        "Time/energy metrics are gap-aware (capped at 10 s per sample interval)."
     ),
     table_properties={"quality": "gold", "agent.purpose": "daily_diagnostics"},
     cluster_by=["log_date"],
 )
 def gold_nibe_daily_summary():
     return spark.sql(f"""
-        WITH starts AS (
+        WITH
+        {_GAP_CTE.format(silver=_SL)},
+        starts AS (
             SELECT log_date_parsed AS log_date, SUM(is_start) AS compr_starts
             FROM (
                 SELECT
@@ -62,7 +104,51 @@ def gold_nibe_daily_summary():
                                OVER (PARTITION BY log_date_parsed ORDER BY logged_at) = 0
                         THEN 1 ELSE 0
                     END AS is_start
-                FROM {_SL}.silver_nibe_logs
+                FROM base
+            )
+            GROUP BY log_date_parsed
+        ),
+        defrost AS (
+            SELECT log_date_parsed AS log_date, SUM(is_defrost_start) AS defrost_cycles
+            FROM (
+                SELECT
+                    log_date_parsed,
+                    CASE
+                        WHEN defrost_active
+                         AND NOT COALESCE(
+                               LAG(defrost_active)
+                                 OVER (PARTITION BY log_date_parsed ORDER BY logged_at),
+                               FALSE)
+                        THEN 1 ELSE 0
+                    END AS is_defrost_start
+                FROM base
+            )
+            GROUP BY log_date_parsed
+        ),
+        -- Short-cycling: starts where the preceding off-period was < 5 minutes.
+        -- Rapid cycling stresses relays and causes refrigerant migration.
+        short_cycles AS (
+            SELECT log_date_parsed AS log_date, SUM(is_short_cycle) AS short_cycle_count
+            FROM (
+                SELECT
+                    log_date_parsed,
+                    CASE
+                        WHEN compr_freq_act_hz > 0
+                         AND LAG(compr_freq_act_hz, 1, 0)
+                               OVER (PARTITION BY log_date_parsed ORDER BY logged_at) = 0
+                         AND TIMESTAMPDIFF(SECOND, off_start, logged_at) < 300
+                        THEN 1 ELSE 0
+                    END AS is_short_cycle
+                FROM (
+                    SELECT *,
+                        -- Track when compressor last turned off
+                        LAST_VALUE(CASE WHEN compr_freq_act_hz = 0
+                                         AND LAG(compr_freq_act_hz, 1, 0)
+                                               OVER (PARTITION BY log_date_parsed ORDER BY logged_at) > 0
+                                        THEN logged_at END, TRUE)
+                            OVER (PARTITION BY log_date_parsed ORDER BY logged_at) AS off_start
+                    FROM base
+                )
             )
             GROUP BY log_date_parsed
         ),
@@ -105,17 +191,18 @@ def gold_nibe_daily_summary():
                 ROUND(AVG(CASE WHEN compr_freq_act_hz > 0
                                THEN compr_freq_act_hz END), 0)                 AS compr_freq_avg_hz,
                 ROUND(MAX(compr_freq_act_hz), 0)                               AS compr_freq_max_hz,
-                ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 5.0
-                      / 3600, 1)                                                AS compr_running_hours,
 
-                -- Total hours of data collected (5s samples × 5/3600)
-                ROUND(COUNT(*) * 5.0 / 3600, 1)                                AS total_hours,
+                -- Gap-aware running hours: use actual interval per row, capped at 10 s
+                ROUND(SUM(CASE WHEN compr_freq_act_hz > 0
+                               THEN gap_interval ELSE 0 END) / 3600.0, 1)     AS compr_running_hours,
+                ROUND(SUM(gap_interval) / 3600.0, 1)                           AS total_hours,
 
                 -- BACKUP HEATER — cost indicator.
                 -- tot_int_add_kw = instantaneous stage power (0/3/6/9 kW).
                 ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0
                       / COUNT(*), 1)                                            AS heater_duty_pct,
-                ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 1)                    AS heater_energy_kwh,
+                -- Gap-aware energy: kW × actual interval
+                ROUND(SUM(tot_int_add_kw * gap_interval / 3600.0), 1)         AS heater_energy_kwh,
                 MAX(tot_int_add_kw)                                             AS heater_max_kw,
 
                 -- SUPERHEAT: pre-computed BT17 − BT16.
@@ -145,14 +232,14 @@ def gold_nibe_daily_summary():
                 SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END)                  AS alarm_samples,
                 ROUND(SUM(CASE WHEN alarm_active THEN 1 ELSE 0 END) * 100.0
                       / COUNT(*), 1)                                             AS alarm_pct,
-                ARRAY_DISTINCT(COLLECT_LIST(
-                    CASE WHEN alarm_active AND alarm_number > 0
-                         THEN alarm_number END))                                AS alarm_codes,
+                -- FIX: FILTER avoids NULL contamination from non-alarm rows
+                ARRAY_DISTINCT(COLLECT_LIST(alarm_number)
+                    FILTER (WHERE alarm_active AND alarm_number > 0))           AS alarm_codes,
                 -- Actionable alarms only — excludes 183 (defrost = normal operation)
                 ROUND(SUM(CASE WHEN alarm_active AND alarm_number != 183 THEN 1 ELSE 0 END) * 100.0
                       / COUNT(*), 1)                                             AS alarm_excl_183_pct,
 
-                -- Defrost cycles (pre-computed: BT16 > 10 °C = hot-gas reversal active)
+                -- Defrost raw sample count (for duty % calculation)
                 SUM(CASE WHEN defrost_active THEN 1 ELSE 0 END)                AS defrost_samples,
 
                 -- BT1 vs BT28 divergence — wind/snow obstruction on outdoor unit.
@@ -170,15 +257,45 @@ def gold_nibe_daily_summary():
                 ROUND(AVG(bt6_dhw_top_c), 1)  AS dhw_avg_c,
                 ROUND(MIN(bt6_dhw_top_c), 1)  AS dhw_min_c,
 
+                -- CONDENSER SUBCOOLING: BT12 (condensing temp) − BT15 (liquid-line).
+                -- saturation_temp_c is always 9.9 °C (firmware N/A sentinel) — do not use.
+                -- BT12 is the actual condenser refrigerant temperature sensor.
+                -- Charge indicator. Target: 3–8 K. <2 K = undercharge. >10 K = overcharge/fouling.
+                ROUND(AVG(CASE WHEN compr_freq_act_hz > 0
+                               THEN bt12_condenser_c - bt15_liquid_c END), 1)  AS subcooling_avg_k,
+                ROUND(MIN(CASE WHEN compr_freq_act_hz > 0
+                               THEN bt12_condenser_c - bt15_liquid_c END), 1)  AS subcooling_min_k,
+
+                -- STANDBY PARASITIC: pump/fan running when system idle.
+                -- Catches stuck actuators or control logic issues.
+                ROUND(SUM(CASE WHEN compr_freq_act_hz = 0 AND tot_int_add_kw = 0
+                                AND priority_mode = 10 AND gp10_circ_pump_on
+                               THEN 1 ELSE 0 END) * 100.0
+                      / NULLIF(SUM(CASE WHEN compr_freq_act_hz = 0 AND tot_int_add_kw = 0
+                                             AND priority_mode = 10
+                                        THEN 1 ELSE 0 END), 0), 1) AS standby_circ_pump_pct,
+                ROUND(AVG(CASE WHEN compr_freq_act_hz = 0 AND tot_int_add_kw = 0
+                                AND priority_mode = 10
+                               THEN gp12_fan_pct END), 1)                      AS standby_fan_avg_pct,
+
+                -- OUTDOOR SENSOR DRIFT: BT1 instantaneous vs BT1 rolling average.
+                -- Persistent divergence > 2 K = noisy or drifting sensor.
+                ROUND(AVG(ABS(bt1_outdoor_temp_c - bt1_average_c)), 1)         AS bt1_vs_avg_divergence_k,
+
                 COUNT(*) AS total_samples
 
-            FROM {_SL}.silver_nibe_logs
+            FROM base
             GROUP BY log_date_parsed
         )
-        SELECT d.*, s.compr_starts
+        SELECT
+            d.*,
+            s.compr_starts,
+            df.defrost_cycles,
+            sc.short_cycle_count
         FROM daily d
-        LEFT JOIN starts s ON d.log_date = s.log_date
-        ORDER BY d.log_date
+        LEFT JOIN starts       s  ON d.log_date = s.log_date
+        LEFT JOIN defrost      df ON d.log_date = df.log_date
+        LEFT JOIN short_cycles sc ON d.log_date = sc.log_date
     """)
 
 
@@ -190,14 +307,18 @@ def gold_nibe_daily_summary():
         "Hour-by-hour breakdown — up to 24 rows per calendar day. "
         "Used by the agent to drill down into a specific day flagged by the daily summary. "
         "Covers all key metrics per hour: temperatures, delta_T, degree-minutes, "
-        "compressor duty/freq, heater energy/duty, superheat, HP pressure, "
-        "discharge temp, alarms, wind/snow divergence, DHW, and mode split."
+        "compressor duty/freq, heater energy/duty, superheat (avg + P10/P50/P90), "
+        "subcooling, HP pressure, discharge temp, alarms, wind/snow divergence, "
+        "DHW, and mode split. "
+        "Heater energy is gap-aware (capped at 10 s per sample interval)."
     ),
     table_properties={"quality": "gold", "agent.purpose": "hourly_drilldown"},
     cluster_by=["log_date"],
 )
 def gold_nibe_hourly_detail():
     return spark.sql(f"""
+        WITH
+        {_GAP_CTE.format(silver=_SL)}
         SELECT
             log_date_parsed                                                                AS log_date,
             HOUR(logged_at)                                                                AS hour,
@@ -223,14 +344,31 @@ def gold_nibe_hourly_detail():
             ROUND(SUM(CASE WHEN compr_freq_act_hz > 0 THEN 1 ELSE 0 END) * 100.0
                   / COUNT(*), 0)                                                           AS compr_duty_pct,
 
-            -- Backup heater
-            ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 2)                                   AS heater_kwh,
+            -- Backup heater — gap-aware energy
+            ROUND(SUM(tot_int_add_kw * gap_interval / 3600.0), 2)                        AS heater_kwh,
             ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0
                   / COUNT(*), 0)                                                           AS heater_duty_pct,
 
-            -- Refrigerant health
+            -- Refrigerant health — superheat with percentile breakdown
             ROUND(AVG(CASE WHEN compr_freq_act_hz > 0
                            THEN superheat_k END), 1)                                      AS superheat_avg_k,
+            -- P10/P50/P90 catch intermittent liquid slugging that averages away
+            ROUND(PERCENTILE_APPROX(
+                CASE WHEN compr_freq_act_hz > 0 THEN superheat_k END,
+                0.1), 1)                                                                   AS superheat_p10_k,
+            ROUND(PERCENTILE_APPROX(
+                CASE WHEN compr_freq_act_hz > 0 THEN superheat_k END,
+                0.5), 1)                                                                   AS superheat_p50_k,
+            ROUND(PERCENTILE_APPROX(
+                CASE WHEN compr_freq_act_hz > 0 THEN superheat_k END,
+                0.9), 1)                                                                   AS superheat_p90_k,
+
+            -- Condenser subcooling — charge indicator (BT12 condenser temp − BT15 liquid-line)
+            ROUND(AVG(CASE WHEN compr_freq_act_hz > 0
+                           THEN bt12_condenser_c - bt15_liquid_c END), 1)                AS subcooling_avg_k,
+            ROUND(MIN(CASE WHEN compr_freq_act_hz > 0
+                           THEN bt12_condenser_c - bt15_liquid_c END), 1)                AS subcooling_min_k,
+
             ROUND(AVG(CASE WHEN compr_freq_act_hz > 0
                            THEN bp4_hp_bar END), 1)                                       AS hp_avg_bar,
             ROUND(AVG(CASE WHEN compr_freq_act_hz > 0
@@ -252,9 +390,8 @@ def gold_nibe_hourly_detail():
                   / COUNT(*), 0)                                                           AS dhw_pct,
 
             COUNT(*)                                                                       AS samples
-        FROM {_SL}.silver_nibe_logs
+        FROM base
         GROUP BY log_date_parsed, HOUR(logged_at)
-        ORDER BY log_date_parsed, HOUR(logged_at)
     """)
 
 
@@ -265,7 +402,7 @@ def gold_nibe_hourly_detail():
     comment=(
         "Delta_T (supply − return temperature difference) grouped by compressor "
         "frequency band per day. The primary diagnostic for underfloor heating flow problems. "
-        "Bands: 01_low_20-40Hz, 02_mid_40-70Hz, 03_high_70-100Hz, 04_max_100+Hz. "
+        "Bands: 01_low_1-39Hz, 02_mid_40-69Hz, 03_high_70-99Hz, 04_max_100+Hz. "
         "Thresholds: delta_t_avg_k 3–5 K = good, 5–7 K = insufficient flow, "
         ">7 K = critical (compressor stress, uneven loop heating). "
         "Heating mode (priority_mode=30), compressor running rows only."
@@ -277,11 +414,12 @@ def gold_nibe_flow_quality():
     return spark.sql(f"""
         SELECT
             log_date_parsed AS log_date,
+            -- FIX: explicit non-overlapping boundaries
             CASE
-                WHEN compr_freq_act_hz BETWEEN  1 AND  40 THEN '01_low_20-40Hz'
-                WHEN compr_freq_act_hz BETWEEN 40 AND  70 THEN '02_mid_40-70Hz'
-                WHEN compr_freq_act_hz BETWEEN 70 AND 100 THEN '03_high_70-100Hz'
-                WHEN compr_freq_act_hz > 100              THEN '04_max_100+Hz'
+                WHEN compr_freq_act_hz >= 1   AND compr_freq_act_hz < 40  THEN '01_low_1-39Hz'
+                WHEN compr_freq_act_hz >= 40  AND compr_freq_act_hz < 70  THEN '02_mid_40-69Hz'
+                WHEN compr_freq_act_hz >= 70  AND compr_freq_act_hz < 100 THEN '03_high_70-99Hz'
+                WHEN compr_freq_act_hz >= 100                             THEN '04_max_100+Hz'
             END AS freq_band,
             ROUND(AVG(delta_t_k), 1)                                         AS delta_t_avg_k,
             ROUND(MAX(delta_t_k), 1)                                         AS delta_t_max_k,
@@ -296,12 +434,11 @@ def gold_nibe_flow_quality():
         GROUP BY
             log_date_parsed,
             CASE
-                WHEN compr_freq_act_hz BETWEEN  1 AND  40 THEN '01_low_20-40Hz'
-                WHEN compr_freq_act_hz BETWEEN 40 AND  70 THEN '02_mid_40-70Hz'
-                WHEN compr_freq_act_hz BETWEEN 70 AND 100 THEN '03_high_70-100Hz'
-                WHEN compr_freq_act_hz > 100              THEN '04_max_100+Hz'
+                WHEN compr_freq_act_hz >= 1   AND compr_freq_act_hz < 40  THEN '01_low_1-39Hz'
+                WHEN compr_freq_act_hz >= 40  AND compr_freq_act_hz < 70  THEN '02_mid_40-69Hz'
+                WHEN compr_freq_act_hz >= 70  AND compr_freq_act_hz < 100 THEN '03_high_70-99Hz'
+                WHEN compr_freq_act_hz >= 100                             THEN '04_max_100+Hz'
             END
-        ORDER BY log_date_parsed, freq_band
     """)
 
 
@@ -340,7 +477,6 @@ def gold_nibe_heating_curve():
         WHERE compr_freq_act_hz > 0 AND priority_mode = 30
         GROUP BY log_date_parsed, ROUND(bt1_outdoor_temp_c, 0)
         HAVING COUNT(*) > 20
-        ORDER BY log_date_parsed, bt1_rounded_c
     """)
 
 
@@ -356,7 +492,8 @@ def gold_nibe_heating_curve():
         "HP pressure, discharge temp, superheat, delta_T, heater power, DM. "
         "Known codes: 183 = defrost cycle (normal operation), "
         "271 = low-temp cutoff (<−20 °C, normal safety), "
-        "162/163 = high-discharge-pressure emergency stop."
+        "162/163 = high-discharge-pressure emergency stop. "
+        "episode_id is unique within a day — combine with log_date for a global key."
     ),
     table_properties={"quality": "gold", "agent.purpose": "alarm_analysis"},
     cluster_by=["log_date"],
@@ -394,7 +531,10 @@ def gold_nibe_alarm_episodes():
             alarm_number,
             MIN(logged_at)                                              AS start_time,
             MAX(logged_at)                                              AS end_time,
-            ROUND(TIMESTAMPDIFF(SECOND, MIN(logged_at), MAX(logged_at)) / 60.0, 1) AS duration_min,
+            -- FIX: floor at 5 s so single-sample episodes don't show 0.0 min
+            ROUND(GREATEST(
+                TIMESTAMPDIFF(SECOND, MIN(logged_at), MAX(logged_at)), 5
+            ) / 60.0, 1)                                                AS duration_min,
             ROUND(AVG(bt1_outdoor_temp_c), 1)                          AS outdoor_avg_c,
             ROUND(AVG(compr_freq_act_hz), 0)                           AS freq_avg_hz,
             ROUND(AVG(bp4_hp_bar), 1)                                  AS hp_avg_bar,
@@ -407,7 +547,6 @@ def gold_nibe_alarm_episodes():
             COUNT(*)                                                   AS samples
         FROM with_episode_id
         GROUP BY log_date_parsed, episode_id, alarm_number
-        ORDER BY start_time
     """)
 
 
@@ -419,6 +558,7 @@ def gold_nibe_alarm_episodes():
         "Daily data quality metrics. Check before trusting diagnostic results. "
         "coverage_pct: target 95%+. Expected full day = 17,280 samples (24h × 720/h at 5s). "
         "max_gap_seconds: gaps >60s indicate data interruptions. >600s = significant gap. "
+        "gaps_over_60s / gaps_over_600s: count of interruptions by severity. "
         "Null counts: non-zero counts indicate sensor faults or communication errors."
     ),
     table_properties={"quality": "gold", "agent.purpose": "data_quality"},
@@ -440,8 +580,10 @@ def gold_nibe_data_quality():
             SUM(CASE WHEN bp4_hp_bar IS NULL THEN 1 ELSE 0 END)          AS null_hp,
             SUM(CASE WHEN bt16_evap_c IS NULL THEN 1 ELSE 0 END)         AS null_bt16,
 
-            -- Maximum gap between consecutive samples within the day
-            MAX(gap_seconds)                                              AS max_gap_seconds
+            -- Gap distribution — gives the agent severity context, not just the worst case
+            MAX(gap_seconds)                                              AS max_gap_seconds,
+            SUM(CASE WHEN gap_seconds > 60  THEN 1 ELSE 0 END)          AS gaps_over_60s,
+            SUM(CASE WHEN gap_seconds > 600 THEN 1 ELSE 0 END)          AS gaps_over_600s
 
         FROM (
             SELECT
@@ -453,5 +595,161 @@ def gold_nibe_data_quality():
             FROM {_SL}.silver_nibe_logs
         )
         GROUP BY log_date_parsed
-        ORDER BY log_date_parsed
+    """)
+
+
+# ── 7. Defrost Cycles ─────────────────────────────────────────────────────────
+
+@dp.materialized_view(
+    name=f"{_GL}.gold_nibe_defrost_cycles",
+    comment=(
+        "Defrost episode detection — the #1 air-source performance issue in cold climates. "
+        "Episode = continuous period where defrost_active is TRUE (BT16 > 10 °C = hot-gas reversal). "
+        "Tracks per episode: start/end time, duration, outdoor temp, evaporator temps "
+        "(BT16 at start and end), fan speed during defrost, compressor freq, HP pressure, "
+        "and whether an alarm occurred during the defrost. "
+        "Normal: 5–15 cycles/day in winter, 3–8 min each. "
+        "Excessive: >20 cycles/day or avg > 10 min = possible coil fouling, fan fault, "
+        "or refrigerant issue. Wet-frost zone (−5 to +3 °C outdoor) is worst. "
+        "episode_id is unique within a day."
+    ),
+    table_properties={"quality": "gold", "agent.purpose": "defrost_analysis"},
+    cluster_by=["log_date"],
+)
+def gold_nibe_defrost_cycles():
+    return spark.sql(f"""
+        WITH transitions AS (
+            SELECT
+                *,
+                CASE
+                    WHEN defrost_active
+                     AND NOT COALESCE(
+                           LAG(defrost_active)
+                             OVER (PARTITION BY log_date_parsed ORDER BY logged_at),
+                           FALSE)
+                    THEN 1 ELSE 0
+                END AS new_episode
+            FROM {_SL}.silver_nibe_logs
+        ),
+        with_episode_id AS (
+            SELECT
+                *,
+                SUM(new_episode) OVER (
+                    PARTITION BY log_date_parsed ORDER BY logged_at
+                ) AS episode_id
+            FROM transitions
+            WHERE defrost_active
+        )
+        SELECT
+            log_date_parsed                                              AS log_date,
+            episode_id,
+            MIN(logged_at)                                              AS start_time,
+            MAX(logged_at)                                              AS end_time,
+            ROUND(GREATEST(
+                TIMESTAMPDIFF(SECOND, MIN(logged_at), MAX(logged_at)), 5
+            ) / 60.0, 1)                                                AS duration_min,
+
+            -- Outdoor conditions during defrost
+            ROUND(AVG(bt1_outdoor_temp_c), 1)                          AS outdoor_avg_c,
+            ROUND(MIN(bt1_outdoor_temp_c), 1)                          AS outdoor_min_c,
+
+            -- Evaporator temp: start vs end shows defrost effectiveness
+            ROUND(MIN(STRUCT(logged_at, bt16_evap_c)).bt16_evap_c, 1)  AS bt16_start_c,
+            ROUND(MAX(STRUCT(logged_at, bt16_evap_c)).bt16_evap_c, 1)  AS bt16_end_c,
+            ROUND(AVG(bt16_evap_c), 1)                                 AS bt16_avg_c,
+
+            -- Fan behaviour during defrost
+            ROUND(AVG(gp12_fan_pct), 0)                                AS fan_avg_pct,
+
+            -- Compressor state during defrost
+            ROUND(AVG(compr_freq_act_hz), 0)                           AS freq_avg_hz,
+            ROUND(AVG(bp4_hp_bar), 1)                                  AS hp_avg_bar,
+            ROUND(AVG(bt14_discharge_c), 1)                            AS discharge_avg_c,
+
+            -- Did an alarm occur during this defrost?
+            MAX(CASE WHEN alarm_active AND alarm_number != 183 THEN 1 ELSE 0 END) AS had_non_defrost_alarm,
+
+            COUNT(*)                                                   AS samples
+        FROM with_episode_id
+        GROUP BY log_date_parsed, episode_id
+    """)
+
+
+# ── 8. DHW Cycles ─────────────────────────────────────────────────────────────
+
+@dp.materialized_view(
+    name=f"{_GL}.gold_nibe_dhw_cycles",
+    comment=(
+        "DHW (domestic hot water) heating episode detection. "
+        "Episode = continuous period where priority_mode = 20 (DHW priority). "
+        "Tracks per episode: start/end time, duration, tank temperatures "
+        "(BT6 top and BT7 charging at start and end), compressor freq, "
+        "heater usage during DHW, and superheat. "
+        "Normal: 1–3 cycles/day, 20–45 min each, end temp ≥ 48 °C. "
+        "Long cycles (>60 min) or falling end-temps signal scaling, "
+        "failing tank sensor, or insufficient compressor capacity. "
+        "Heater running during DHW above −5 °C outdoor is unusual. "
+        "episode_id is unique within a day."
+    ),
+    table_properties={"quality": "gold", "agent.purpose": "dhw_analysis"},
+    cluster_by=["log_date"],
+)
+def gold_nibe_dhw_cycles():
+    return spark.sql(f"""
+        WITH transitions AS (
+            SELECT
+                *,
+                CASE
+                    WHEN priority_mode = 20
+                     AND COALESCE(
+                           LAG(priority_mode)
+                             OVER (PARTITION BY log_date_parsed ORDER BY logged_at),
+                           0) != 20
+                    THEN 1 ELSE 0
+                END AS new_episode
+            FROM {_SL}.silver_nibe_logs
+        ),
+        with_episode_id AS (
+            SELECT
+                *,
+                SUM(new_episode) OVER (
+                    PARTITION BY log_date_parsed ORDER BY logged_at
+                ) AS episode_id
+            FROM transitions
+            WHERE priority_mode = 20
+        )
+        SELECT
+            log_date_parsed                                              AS log_date,
+            episode_id,
+            MIN(logged_at)                                              AS start_time,
+            MAX(logged_at)                                              AS end_time,
+            ROUND(GREATEST(
+                TIMESTAMPDIFF(SECOND, MIN(logged_at), MAX(logged_at)), 5
+            ) / 60.0, 1)                                                AS duration_min,
+
+            -- Tank temperatures: start vs end shows heating effectiveness
+            ROUND(MIN(STRUCT(logged_at, bt6_dhw_top_c)).bt6_dhw_top_c, 1)   AS bt6_start_c,
+            ROUND(MAX(STRUCT(logged_at, bt6_dhw_top_c)).bt6_dhw_top_c, 1)   AS bt6_end_c,
+            ROUND(MIN(STRUCT(logged_at, bt7_dhw_charge_c)).bt7_dhw_charge_c, 1) AS bt7_start_c,
+            ROUND(MAX(STRUCT(logged_at, bt7_dhw_charge_c)).bt7_dhw_charge_c, 1) AS bt7_end_c,
+
+            -- Outdoor temp context
+            ROUND(AVG(bt1_outdoor_temp_c), 1)                          AS outdoor_avg_c,
+
+            -- Compressor during DHW
+            ROUND(AVG(compr_freq_act_hz), 0)                           AS freq_avg_hz,
+            ROUND(AVG(bp4_hp_bar), 1)                                  AS hp_avg_bar,
+            ROUND(AVG(superheat_k), 1)                                 AS superheat_avg_k,
+
+            -- Heater usage during DHW — should be 0 in mild weather
+            ROUND(SUM(CASE WHEN tot_int_add_kw > 0 THEN 1 ELSE 0 END) * 100.0
+                  / COUNT(*), 0)                                        AS heater_duty_pct,
+            ROUND(SUM(tot_int_add_kw * 5.0 / 3600), 2)                AS heater_kwh,
+
+            -- Alarm during DHW
+            MAX(CASE WHEN alarm_active THEN 1 ELSE 0 END)             AS had_alarm,
+
+            COUNT(*)                                                   AS samples
+        FROM with_episode_id
+        GROUP BY log_date_parsed, episode_id
     """)

@@ -280,7 +280,7 @@ def gold_nibe_ml_features():
         LEFT JOIN (
             SELECT log_date, delta_t_avg_k
             FROM {_GL}.gold_nibe_flow_quality
-            WHERE freq_band = '01_low_20-40Hz'
+            WHERE freq_band = '01_low_1-39Hz'
         ) f_low ON d.log_date = f_low.log_date
 
         -- Heater usage at mild outdoor temps (above -10°C) — weighted by samples
@@ -295,10 +295,10 @@ def gold_nibe_ml_features():
         ) hc_mild ON d.log_date = hc_mild.log_date
 
         -- Cycle stats
-        LEFT JOIN gold_nibe_cycle_summary c ON d.log_date = c.log_date
+        LEFT JOIN {_GL}.gold_nibe_cycle_summary c ON d.log_date = c.log_date
 
         -- Data quality flags
-        LEFT JOIN gold_nibe_data_quality dq ON d.log_date = dq.log_date
+        LEFT JOIN {_GL}.gold_nibe_data_quality dq ON d.log_date = dq.log_date
 
         -- Self-baseline: historical median per outdoor temp bin (2°C resolution)
         LEFT JOIN (

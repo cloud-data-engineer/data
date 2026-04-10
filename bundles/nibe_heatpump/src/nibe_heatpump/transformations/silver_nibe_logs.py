@@ -19,7 +19,9 @@ Divisor map (from .LOG file Row 1, applied per register):
 
 Special cases:
   - saturation_temp / saturation_temp_sent: raw 99 → 9.9 °C is firmware
-    "sensor not available". Treat with caution.
+    "sensor not available". Never use for subcooling — use bt12_condenser_c − bt15_liquid_c.
+  - defrost_active requires BOTH bt16 > 10 °C AND gp12_fan > 30 %. bt16 alone fires false
+    positives for hours on warm days (outdoor > 10 °C) when the unit is in standby.
   - bt14 (discharge): firmware clamps at 440 raw (44.0 °C) in some builds.
   - gp10_on_off: file divisor=10 but the register is boolean (0=off, ≥1=on).
     Cast to boolean directly, ignoring the stated divisor.
@@ -121,8 +123,8 @@ def silver_nibe_logs():
         .withColumn("bt16_evap_c",         F.col("eb101_bt16_raw").cast("int") / 10.0)
         # BT17: suction-gas temperature (evaporator outlet). Used to calculate superheat.
         .withColumn("bt17_suction_c",      F.col("eb101_bt17_raw").cast("int") / 10.0)
-        # Condensing saturation temperature from high-side pressure via refrigerant tables.
-        # Raw value 99 (→ 9.9 °C) is a firmware "sensor N/A" placeholder.
+        # saturation_temp / sat_temp_sent: always reads 9.9 °C (raw 99) — firmware "sensor N/A".
+        # DO NOT use for subcooling. Use bt12_condenser_c − bt15_liquid_c instead.
         .withColumn("saturation_temp_c",       F.col("saturation_temp_raw").cast("int") / 10.0)
         .withColumn("saturation_temp_sent_c",  F.col("sat_temp_sent_raw").cast("int") / 10.0)
 
@@ -190,11 +192,14 @@ def silver_nibe_logs():
             ((F.col("eb101_bt17_raw").cast("int") - F.col("eb101_bt16_raw").cast("int")) < 0)
         )
 
-        # Defrost detection: BT16 (air evaporator) > 10 °C indicates hot-gas reversal.
-        # Normal evaporator temp is well below 0 °C when heating; defrost spikes to 16–27 °C.
+        # Defrost detection: BT16 (air evaporator) > 10 °C AND outdoor fan running (GP12 > 30%).
+        # BT16 alone is insufficient — in warm weather (outdoor > 10°C) BT16 drifts above 10°C
+        # naturally during standby (fan stopped), producing false positives lasting hours.
+        # Real defrost: hot-gas reversal spikes BT16 to 16–27 °C while fan keeps running to aid melt.
         .withColumn(
             "defrost_active",
-            F.col("eb101_bt16_raw").cast("int") / 10.0 > 10.0
+            (F.col("eb101_bt16_raw").cast("int") / 10.0 > 10.0) &
+            (F.col("gp12_speed_raw").cast("int") > 30)
         )
 
         # BT1 vs BT28 temperature divergence: |outdoor_air − compressor_module|.

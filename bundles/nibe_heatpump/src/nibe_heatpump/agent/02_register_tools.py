@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # NIBE Diagnostic Agent — Register UC Tool Functions
 # MAGIC
-# MAGIC Registers 12 SQL functions for use as AI agent tools.
+# MAGIC Registers 14 SQL functions for use as AI agent tools.
 # MAGIC These functions are called by the LLM agent (via AI Playground or model serving)
 # MAGIC to retrieve pre-aggregated diagnostic data from the gold tables.
 # MAGIC
@@ -26,7 +26,7 @@ CREATE OR REPLACE FUNCTION {_GL}.get_daily_summary(
   lookback_days INT DEFAULT 7
 )
 RETURNS STRING
-COMMENT 'Returns daily performance summary for the last N days. START HERE after get_system_health flags issues. Returns JSON with: outdoor temps, delta_T (flow quality, target 3-5K, >7K critical), degree_minutes (demand, target >-200, <-400 struggling), compressor duty/freq/starts/hours, heater usage (target 0 kWh), superheat (BT17-BT16, target 3-7K, negative=dangerous), pressures, discharge temp, alarms (alarm_codes array, alarm_excl_183_pct for actionable alarms), wind/snow divergence.'
+COMMENT 'Returns daily performance summary for the last N days. START HERE after get_system_health flags issues. Returns JSON with: outdoor temps, delta_T (flow quality, target 3-5K, >7K critical), degree_minutes (demand, target >-200, <-400 struggling), compressor duty/freq/starts/hours, heater usage (target 0 kWh), superheat (BT17-BT16, target 3-7K, negative=dangerous), subcooling (sat-BT15, target 3-8K, <2K=undercharge, >10K=overcharge), pressures, discharge temp, alarms, short_cycle_count (off<5min restarts), standby parasitic, sensor drift, wind/snow divergence.'
 RETURN (
   SELECT TO_JSON(COLLECT_LIST(NAMED_STRUCT(
     'log_date', log_date,
@@ -49,7 +49,14 @@ RETURN (
     'alarm_codes', alarm_codes,
     'bt1_bt28_max_divergence_k', bt1_bt28_max_divergence_k,
     'supply_vs_calc_offset_k', supply_vs_calc_offset_k,
-    'total_hours', total_hours
+    'total_hours', total_hours,
+    'subcooling_avg_k', subcooling_avg_k,
+    'subcooling_min_k', subcooling_min_k,
+    'short_cycle_count', short_cycle_count,
+    'standby_circ_pump_pct', standby_circ_pump_pct,
+    'standby_fan_avg_pct', standby_fan_avg_pct,
+    'bt1_vs_avg_divergence_k', bt1_vs_avg_divergence_k,
+    'defrost_cycles', defrost_cycles
   )))
   FROM (
     SELECT * FROM {_GL}.gold_nibe_daily_summary
@@ -215,7 +222,7 @@ CREATE OR REPLACE FUNCTION {_GL}.get_hourly_detail(
   target_date STRING
 )
 RETURNS STRING
-COMMENT 'Returns hour-by-hour detail for a specific day (format: YYYY-MM-DD). Use for drill-down after daily summary flags an issue. Provides up to 24 rows with: temperatures, flow quality (delta_T), demand (degree_minutes), compressor duty/freq, heater energy/duty, superheat, HP pressure, discharge temp, alarm count, wind/snow indicator, DHW temp, and heating/DHW mode split per hour.'
+COMMENT 'Returns hour-by-hour detail for a specific day (format: YYYY-MM-DD). Use for drill-down after daily summary flags an issue. Provides up to 24 rows with: temperatures, flow quality (delta_T), demand (degree_minutes), compressor duty/freq, heater energy/duty, superheat (avg + P10/P50/P90 for intermittent slugging), subcooling (charge indicator), HP pressure, discharge temp, alarm count, wind/snow indicator, DHW temp, and heating/DHW mode split per hour.'
 RETURN (
   SELECT TO_JSON(COLLECT_LIST(NAMED_STRUCT(
     'hour', hour,
@@ -229,6 +236,10 @@ RETURN (
     'heater_kwh', heater_kwh,
     'heater_duty_pct', heater_duty_pct,
     'superheat_avg_k', superheat_avg_k,
+    'superheat_p10_k', superheat_p10_k,
+    'superheat_p50_k', superheat_p50_k,
+    'superheat_p90_k', superheat_p90_k,
+    'subcooling_avg_k', subcooling_avg_k,
     'hp_avg_bar', hp_avg_bar,
     'discharge_avg_c', discharge_avg_c,
     'alarm_samples', alarm_samples,
@@ -499,7 +510,77 @@ print("get_worst_cycles: registered")
 
 # COMMAND ----------
 
-# DBTITLE 1,Verify All 12 Functions
+# DBTITLE 1,13. get_defrost_analysis
+spark.sql(f"""
+CREATE OR REPLACE FUNCTION {_GL}.get_defrost_analysis(
+  lookback_days INT DEFAULT 7
+)
+RETURNS STRING
+COMMENT 'Defrost cycle analysis — #1 air-source issue in cold climates. Returns per-episode: start/end time, duration, outdoor temp, evaporator temps (BT16 start vs end shows melt effectiveness), fan speed, compressor freq, HP pressure, and whether a non-defrost alarm occurred. Normal: 5-15 cycles/day, 3-8 min each. Excessive: >20/day or avg >10 min = coil fouling, fan fault, or refrigerant issue. Worst zone: -5 to +3°C outdoor (wet frost). Alarm 183 is the defrost state — this table shows what happened DURING each defrost.'
+RETURN (
+  SELECT TO_JSON(COLLECT_LIST(NAMED_STRUCT(
+    'log_date', log_date,
+    'episode_id', episode_id,
+    'start_time', start_time,
+    'duration_min', duration_min,
+    'outdoor_avg_c', outdoor_avg_c,
+    'bt16_start_c', bt16_start_c,
+    'bt16_end_c', bt16_end_c,
+    'bt16_avg_c', bt16_avg_c,
+    'fan_avg_pct', fan_avg_pct,
+    'freq_avg_hz', freq_avg_hz,
+    'hp_avg_bar', hp_avg_bar,
+    'discharge_avg_c', discharge_avg_c,
+    'had_non_defrost_alarm', had_non_defrost_alarm
+  )))
+  FROM (
+    SELECT * FROM {_GL}.gold_nibe_defrost_cycles
+    WHERE log_date >= DATE_SUB(CURRENT_DATE(), lookback_days)
+    ORDER BY start_time
+  )
+)
+""")
+print("get_defrost_analysis: registered")
+
+# COMMAND ----------
+
+# DBTITLE 1,14. get_dhw_analysis
+spark.sql(f"""
+CREATE OR REPLACE FUNCTION {_GL}.get_dhw_analysis(
+  lookback_days INT DEFAULT 7
+)
+RETURNS STRING
+COMMENT 'DHW (hot water) cycle analysis. Returns per-episode: start/end time, duration, tank temperatures (BT6 top at start/end, BT7 charging at start/end), outdoor temp, compressor freq, HP pressure, superheat, heater usage, and alarm flag. Normal: 1-3 cycles/day, 20-45 min, end BT6 >= 48°C. Long cycles (>60 min) or falling end temps signal scaling, tank sensor fault, or capacity issue. Heater during DHW above -5°C outdoor is unusual.'
+RETURN (
+  SELECT TO_JSON(COLLECT_LIST(NAMED_STRUCT(
+    'log_date', log_date,
+    'episode_id', episode_id,
+    'start_time', start_time,
+    'duration_min', duration_min,
+    'bt6_start_c', bt6_start_c,
+    'bt6_end_c', bt6_end_c,
+    'bt7_start_c', bt7_start_c,
+    'bt7_end_c', bt7_end_c,
+    'outdoor_avg_c', outdoor_avg_c,
+    'freq_avg_hz', freq_avg_hz,
+    'hp_avg_bar', hp_avg_bar,
+    'superheat_avg_k', superheat_avg_k,
+    'heater_duty_pct', heater_duty_pct,
+    'heater_kwh', heater_kwh,
+    'had_alarm', had_alarm
+  )))
+  FROM (
+    SELECT * FROM {_GL}.gold_nibe_dhw_cycles
+    WHERE log_date >= DATE_SUB(CURRENT_DATE(), lookback_days)
+    ORDER BY start_time
+  )
+)
+""")
+print("get_dhw_analysis: registered")
+
+# COMMAND ----------
+
+# DBTITLE 1,Verify All 14 Functions
 display(spark.sql(f"""
   SELECT routine_name, comment
   FROM {_env}_gold.information_schema.routines
@@ -508,7 +589,8 @@ display(spark.sql(f"""
       'get_system_health', 'get_daily_summary', 'get_flow_diagnosis',
       'get_superheat_status', 'get_heater_analysis', 'get_alarm_episodes',
       'get_heating_curve', 'get_hourly_detail', 'get_data_quality',
-      'get_period_comparison', 'get_cycle_analysis', 'get_worst_cycles'
+      'get_period_comparison', 'get_cycle_analysis', 'get_worst_cycles',
+      'get_defrost_analysis', 'get_dhw_analysis'
     )
   ORDER BY routine_name
 """))
@@ -560,3 +642,17 @@ data = json.loads(result)
 print(f"\nget_cycle_analysis(7): {len(data)} days")
 for d in data:
     print(f"  {d.get('log_date')}: {d.get('total_cycles')} cycles | avg={d.get('avg_cycle_min')}min | short={d.get('short_cycle_pct')}% | alarms={d.get('cycles_with_alarm')}")
+
+# 7. Defrost analysis
+result = spark.sql(f"SELECT {_GL}.get_defrost_analysis(7) AS r").collect()[0]['r']
+data = json.loads(result)
+print(f"\nget_defrost_analysis(7): {len(data)} episodes")
+for ep in data[:3]:
+    print(f"  {ep.get('log_date')} #{ep.get('episode_id')}: {ep.get('duration_min')}min | outdoor={ep.get('outdoor_avg_c')}°C | BT16 {ep.get('bt16_start_c')}→{ep.get('bt16_end_c')}°C")
+
+# 8. DHW analysis
+result = spark.sql(f"SELECT {_GL}.get_dhw_analysis(7) AS r").collect()[0]['r']
+data = json.loads(result)
+print(f"\nget_dhw_analysis(7): {len(data)} episodes")
+for ep in data[:3]:
+    print(f"  {ep.get('log_date')} #{ep.get('episode_id')}: {ep.get('duration_min')}min | BT6 {ep.get('bt6_start_c')}→{ep.get('bt6_end_c')}°C | heater={ep.get('heater_duty_pct')}%")
